@@ -1,58 +1,42 @@
 [
   {
-    "empresa": "GIRONA - RIO SUR",
-    "activos": ["Kyrios", "Veronica V"]
+    "empresa": "Río Norte Logística",
+    "activos": ["Aurora I", "Centinela", "Brisa Sur"]
   },
   {
-    "empresa": "CARGILL",
-    "activos": ["Aguara", "Aguilucho", "Puma"]
+    "empresa": "Hidrovía Central S.A.",
+    "activos": ["Horizonte", "Altamar", "Fénix"]
   },
   {
-    "empresa": "GUARAN FEEDER",
-    "activos": ["Itapú", "Tuyutí"]
+    "empresa": "Delta Fluvial",
+    "activos": ["Río Claro", "Guaraní Star", "Sirio"]
   },
   {
-    "empresa": "COPANU",
-    "activos": ["Nautic Twin", "Don Juan"]
+    "empresa": "Terminales del Sur",
+    "activos": ["Fortaleza", "Bahía Sur", "Cordelia"]
   },
   {
-    "empresa": "TRANSMAR SACI",
-    "activos": ["Don Toyo", "Doña Keiko", "Enterprise", "Reina del Paraná"]
+    "empresa": "Navegación Atlántica",
+    "activos": ["Estrella del Este", "Pionero", "Orinoco"]
   },
   {
-    "empresa": "ATRIA - ROCKTREE",
-    "activos": ["Asunción", "Capitán Bilbo", "Cavalier I", "Cavalier IV", "Cavalier VII", "Cavalier IX", "Cavalier XI", "Cavalier XV", "Chaco X", "Itapúa", "San Martín"]
+    "empresa": "Puerto Integral S.A.",
+    "activos": ["Marfil", "Tayrona", "Luz Marina"]
   },
   {
-    "empresa": "CARGO LINE",
-    "activos": ["Don Abraham", "Juanjo A", "María A", "Nora E", "Nuar B", "Santa María"]
+    "empresa": "Flota Guaraní",
+    "activos": ["Arandú", "Jaspe", "Ñandutí"]
   },
   {
-    "empresa": "HIDROVIAS DO BRASIL",
-    "activos": ["Aquarius", "Águila", "Centaurus", "Draco", "Grus", "Herkules III", "Herkules IV", "Herkules V", "Herkules XV", "Herkules XVI", "Herkules XVII", "Herkules XVIII", "Hydra", "Jacunda", "Lynx", "Pegasus", "Perseus", "Phoenix", "Pirarara", "Pirarucu", "Scorpius", "Taurus"]
+    "empresa": "Río Azul Transporte",
+    "activos": ["Celeste", "Amanecer", "Ventisquero"]
   },
   {
-    "empresa": "LINEAS PANCHITA GROUP",
-    "activos": ["Diego Juan", "Don Aureliano", "Don Mauricio", "Don Pacheco", "Don Sebastián", "Doña Carmen", "Esperanza", "Maricella", "Montelindo", "Montelindo 2", "Montelindo 3", "Olimpo", "PiraBebe", "Río de la Plata", "Tío Jan", "Tío Kike"]
+    "empresa": "Operadora del Paraná",
+    "activos": ["Donairo", "Mirador", "Costa Firme"]
   },
   {
-    "empresa": "IMPALA TERMINALS",
-    "activos": ["Campana", "Encarnación", "Pantanal", "San Antonio"]
-  },
-  {
-    "empresa": "LOGICO PARAGUAY S.A.",
-    "activos": ["Guyratí", "Mbigua", "Taguato", "Urutau"]
-  },
-  {
-    "empresa": "LHG MINING",
-    "activos": ["Penélope", "Juliet"]
-  },
-  {
-    "empresa": "NAVIERA CHACO (ADM)",
-    "activos": ["Asunceno", "Decatur Lady", "Humaitá", "María Auxiliadora", "Tendota"]
-  },
-  {
-    "empresa": "NAVEMAR S.A.",
-    "activos": ["Ava Payagua", "Belen B", "Carmen S", "Clara B", "Raul D"]
+    "empresa": "Servicios Navales del Plata",
+    "activos": ["Galerna", "Tridente", "Alborada"]
   }
 ]

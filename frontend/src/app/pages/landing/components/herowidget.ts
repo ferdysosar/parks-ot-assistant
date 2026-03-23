@@ -43,7 +43,7 @@ import { RippleModule } from 'primeng/ripple';
                     <div class="space-y-4">
                         <div class="flex justify-end">
                             <div class="bg-green-100 text-gray-800 px-4 py-3 rounded-2xl rounded-br-sm max-w-xs shadow-sm">
-                                ¿Qué trabajos se realizaron en el remolcador Decatour Lady?
+                                ¿Qué trabajos se realizaron en el remolcador Aurora I?
                             </div>
                         </div>
 

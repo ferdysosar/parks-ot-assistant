@@ -10,7 +10,7 @@ import { Component } from '@angular/core';
             <div class="max-w-3xl mx-auto bg-gray-100 p-6 rounded-xl text-left shadow">
                 <div class="mb-4">
                     <strong>Usuario:</strong>
-                    <p>¿Qué trabajos se realizaron en el barco Don Mauricio en marzo?</p>
+                    <p>¿Qué trabajos se realizaron en el barco Piero Jesús en marzo?</p>
                 </div>
 
                 <div>

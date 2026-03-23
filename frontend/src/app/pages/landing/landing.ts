@@ -5,11 +5,12 @@ import { HeroWidget } from './components/herowidget';
 import { FeaturesWidget } from './components/featureswidget';
 import { FooterWidget } from './components/footerwidget';
 import { DemoWidget } from './components/demowidget/demowidget';
+import { OtsWidget } from './components/otswidget/otswidget';
 
 @Component({
     selector: 'app-landing',
     standalone: true,
-    imports: [RouterModule, TopbarWidget, HeroWidget, FeaturesWidget, DemoWidget, FooterWidget],
+    imports: [RouterModule, TopbarWidget, HeroWidget, FeaturesWidget, DemoWidget, OtsWidget, FooterWidget],
     template: `
         <div class="bg-surface-0 dark:bg-surface-900">
             <div id="home" class="landing-wrapper overflow-hidden">
@@ -17,6 +18,7 @@ import { DemoWidget } from './components/demowidget/demowidget';
                 <hero-widget />
                 <features-widget />
                 <demo-widget />
+                <ots-widget />
                 <footer-widget />
             </div>
         </div>
