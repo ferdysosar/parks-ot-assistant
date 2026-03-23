@@ -1,123 +1,270 @@
+import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import otsData from '../../../../../data/ots-demo.json';
-import companiesData from '../../../../../data/empresas-activos.json';
+import empresasActivos from '../../../../../data/empresas-activos.json';
+
+type OTDemo = {
+    ot_numero: string;
+    empresa: string;
+    activo: string;
+    fecha: string;
+    tipo: string;
+    motivo: string;
+    trabajo_realizado: string;
+    materiales: string[];
+    responsable: string;
+    ubicacion: string;
+    observaciones?: string;
+};
+
+type EmpresaActivo = {
+    empresa: string;
+    activos: string[];
+};
 
 @Component({
     selector: 'ots-widget',
     standalone: true,
-    imports: [FormsModule],
+    imports: [CommonModule, FormsModule],
     template: `
-        <div class="py-20 px-6 lg:px-20">
-            <div class="text-center mb-10">
-                <h2 class="text-4xl font-semibold mb-4">Órdenes de trabajo demo</h2>
-                <p class="text-xl text-gray-600">
-                    Ejemplos de registros estructurados que servirán como base para el asistente.
-                </p>
+        <section
+            id="ots"
+            class="relative py-24 lg:py-28 px-6 lg:px-12 text-white overflow-hidden"
+            style="
+                background:
+                    radial-gradient(circle at 18% 20%, rgba(34, 211, 238, 0.08), transparent 24%),
+                    radial-gradient(circle at 82% 20%, rgba(14, 165, 233, 0.08), transparent 22%),
+                    linear-gradient(180deg, #081321 0%, #0b1728 100%);
+            "
+        >
+            <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent"></div>
+
+            <div class="absolute inset-0 opacity-10 pointer-events-none">
+                <div
+                    class="absolute inset-0"
+                    style="
+                        background-image:
+                            linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+                        background-size: 42px 42px;
+                    "
+                ></div>
             </div>
 
-            <div class="max-w-6xl mx-auto mb-8">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    Filtrar por empresa
-                </label>
-                <select
-                    class="w-full md:w-96 px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-800 shadow-sm"
-                    [(ngModel)]="selectedEmpresa"
-                    (change)="selectedActivo = ''"
-                >
-                    <option value="">Todas las empresas</option>
-                    @for (empresa of empresas; track empresa) {
-                        <option [value]="empresa">{{ empresa }}</option>
-                    }
-                </select>
+            <div class="relative z-10 max-w-7xl mx-auto">
+                <!-- encabezado -->
+                <div class="max-w-3xl mx-auto text-center">
+                    <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm mb-6">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                        Registros estructurados para consulta
+                    </div>
 
-                <div class="mt-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Filtrar por activo
-                    </label>
+                    <p class="text-sm md:text-base uppercase tracking-[0.35em] text-cyan-300 font-semibold mb-4">
+                        Órdenes demo · filtros dinámicos · trazabilidad técnica
+                    </p>
 
-                    <select
-                        class="w-full md:w-96 px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-800 shadow-sm"
-                        [(ngModel)]="selectedActivo"
-                        [disabled]="!selectedEmpresa"
+                    <h2
+                        class="text-4xl md:text-5xl font-extrabold tracking-tight"
+                        style="color: #ffffff;"
                     >
-                        <option value="">Todos los activos</option>
+                        Órdenes de trabajo demo
+                    </h2>
 
-                        @for (activo of activos; track activo) {
-                            <option [value]="activo">{{ activo }}</option>
-                        }
-                    </select>
+                    <div class="mt-5 w-24 h-1 mx-auto rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"></div>
+
+                    <p class="mt-6 text-lg leading-relaxed" style="color: #e2e8f0;">
+                        Explorá registros de ejemplo utilizando filtros por empresa y activo,
+                        simulando la lógica de consulta que tendrá el asistente.
+                    </p>
+                </div>
+
+                <!-- filtros -->
+                <div class="mt-14 max-w-5xl mx-auto">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 shadow-xl">
+                            <label class="block text-sm font-semibold mb-3" style="color: #ffffff;">
+                                Filtrar por empresa
+                            </label>
+
+                            <select
+                                [(ngModel)]="empresaSeleccionada"
+                                (ngModelChange)="onEmpresaChange()"
+                                class="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none"
+                                style="color: #ffffff;"
+                            >
+                                <option value="">Todas las empresas</option>
+                                <option *ngFor="let empresa of empresasUnicas" [value]="empresa">
+                                    {{ empresa }}
+                                </option>
+                            </select>
+                        </div>
+
+                        <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 shadow-xl">
+                            <label class="block text-sm font-semibold mb-3" style="color: #ffffff;">
+                                Filtrar por activo
+                            </label>
+
+                            <select
+                                [(ngModel)]="activoSeleccionado"
+                                class="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none"
+                                style="color: #ffffff;"
+                            >
+                                <option value="">Todos los activos</option>
+                                <option *ngFor="let activo of activosDisponibles" [value]="activo">
+                                    {{ activo }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- resultados -->
+                <div class="mt-12 max-w-5xl mx-auto space-y-6">
+                    <ng-container *ngIf="otsFiltradas.length > 0; else sinResultados">
+                        <article
+                            *ngFor="let ot of otsFiltradas"
+                            class="rounded-[2rem] border border-white/10 bg-slate-950/65 backdrop-blur-xl shadow-2xl overflow-hidden"
+                        >
+                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-5 border-b border-white/10 bg-white/5">
+                                <div>
+                                    <div class="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">
+                                        {{ ot.ot_numero }}
+                                    </div>
+                                    <h3 class="text-3xl font-bold" style="color: #ffffff;">
+                                        {{ ot.activo }}
+                                    </h3>
+                                    <p class="mt-2 text-base" style="color: #cbd5e1;">
+                                        {{ ot.empresa }}
+                                    </p>
+                                </div>
+
+                                <div class="flex flex-col md:items-end gap-2">
+                                    <div class="text-sm" style="color: #e2e8f0;">
+                                        {{ ot.fecha }}
+                                    </div>
+                                    <div class="inline-flex items-center px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm">
+                                        {{ ot.tipo }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-6 lg:p-7">
+                                <div class="grid md:grid-cols-2 gap-4">
+                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                            Motivo
+                                        </div>
+                                        <div class="mt-2 text-slate-100 leading-relaxed">
+                                            {{ ot.materiales.join(', ') }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                            Ubicación
+                                        </div>
+                                        <div class="mt-2 text-slate-100 leading-relaxed">
+                                            {{ ot.ubicacion }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
+                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                            Trabajo realizado
+                                        </div>
+                                        <div class="mt-2 text-slate-100 leading-relaxed">
+                                            {{ ot.trabajo_realizado }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                            Responsable
+                                        </div>
+                                        <div class="mt-2 text-slate-100 leading-relaxed">
+                                            {{ ot.responsable }}
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                            Materiales
+                                        </div>
+                                        <div class="mt-2 text-slate-100 leading-relaxed">
+                                            {{ ot.materiales }}
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        *ngIf="ot.observaciones"
+                                        class="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2"
+                                    >
+                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                            Observaciones
+                                        </div>
+                                        <div class="mt-2 text-slate-100 leading-relaxed">
+                                            {{ ot.observaciones }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </article>
+                    </ng-container>
+
+                    <ng-template #sinResultados>
+                        <div class="rounded-[2rem] border border-white/10 bg-slate-950/65 backdrop-blur-xl p-10 text-center shadow-2xl">
+                            <div class="text-cyan-300 text-sm font-semibold uppercase tracking-[0.25em] mb-3">
+                                Sin resultados
+                            </div>
+                            <h3 class="text-2xl font-bold mb-3" style="color: #ffffff;">
+                                No se encontraron órdenes para ese filtro
+                            </h3>
+                            <p style="color: #cbd5e1;">
+                                Probá cambiando la empresa o el activo para visualizar otros registros demo.
+                            </p>
+                        </div>
+                    </ng-template>
                 </div>
             </div>
-
-            <div class="grid gap-6 max-w-6xl mx-auto">
-                @if (filteredOts.length > 0) {
-                    @for (ot of filteredOts.slice(0, 6); track ot.ot_numero) {
-                        <div class="bg-white rounded-2xl shadow-md border border-gray-200 p-6">
-                            <div class="flex justify-between items-start gap-4 flex-col md:flex-row">
-                                <div>
-                                    <div class="text-sm text-gray-500">{{ ot.ot_numero }}</div>
-                                    <h3 class="text-xl font-semibold">{{ ot.activo }}</h3>
-                                    <p class="text-gray-600">{{ ot.empresa }}</p>
-                                </div>
-                                <div class="text-sm text-gray-500">
-                                    {{ ot.fecha }} · {{ ot.tipo }}
-                                </div>
-                            </div>
-
-                            <div class="mt-4 text-gray-700 space-y-2">
-                                <p><strong>Motivo:</strong> {{ ot.motivo }}</p>
-                                <p><strong>Trabajo:</strong> {{ ot.trabajo_realizado }}</p>
-                                <p><strong>Ubicación:</strong> {{ ot.ubicacion }}</p>
-                                <p><strong>Responsable:</strong> {{ ot.responsable }}</p>
-                                <p>
-                                    <strong>Materiales:</strong>
-                                    {{ ot.materiales.length ? ot.materiales.join(', ') : 'Sin materiales' }}
-                                </p>
-                            </div>
-                        </div>
-                    }
-                } @else {
-                    <div class="bg-white rounded-2xl shadow-md border border-gray-200 p-6 text-center text-gray-500">
-                        No hay órdenes de trabajo registradas para ese filtro.
-                    </div>
-                }
-            </div>
-        </div>
+        </section>
     `
 })
 export class OtsWidget {
-    ots = otsData;
-    companies = companiesData;
+    ots: OTDemo[] = otsData as OTDemo[];
+    catalogo: EmpresaActivo[] = empresasActivos as EmpresaActivo[];
 
-    selectedEmpresa = '';
-    selectedActivo = '';
+    empresaSeleccionada = '';
+    activoSeleccionado = '';
 
-    empresas = this.companies.map((company) => company.empresa);
+    empresasUnicas: string[] = [];
+    activosDisponibles: string[] = [];
 
-    get activos() {
-        if (!this.selectedEmpresa) {
-            return [];
-        }
-
-        const company = this.companies.find(
-            (company) => company.empresa === this.selectedEmpresa
-        );
-
-        return company ? company.activos : [];
+    constructor() {
+        this.empresasUnicas = this.catalogo.map((item) => item.empresa);
+        this.actualizarActivosDisponibles();
     }
 
-    get filteredOts() {
+    get otsFiltradas(): OTDemo[] {
         return this.ots.filter((ot) => {
-            const matchEmpresa = this.selectedEmpresa
-                ? ot.empresa === this.selectedEmpresa
-                : true;
-
-            const matchActivo = this.selectedActivo
-                ? ot.activo === this.selectedActivo
-                : true;
-
-            return matchEmpresa && matchActivo;
+            const coincideEmpresa = !this.empresaSeleccionada || ot.empresa === this.empresaSeleccionada;
+            const coincideActivo = !this.activoSeleccionado || ot.activo === this.activoSeleccionado;
+            return coincideEmpresa && coincideActivo;
         });
+    }
+
+    onEmpresaChange(): void {
+        this.activoSeleccionado = '';
+        this.actualizarActivosDisponibles();
+    }
+
+    actualizarActivosDisponibles(): void {
+        if (!this.empresaSeleccionada) {
+            this.activosDisponibles = this.catalogo.flatMap((item) => item.activos);
+            return;
+        }
+
+        const empresa = this.catalogo.find((item) => item.empresa === this.empresaSeleccionada);
+        this.activosDisponibles = empresa ? empresa.activos : [];
     }
 }
