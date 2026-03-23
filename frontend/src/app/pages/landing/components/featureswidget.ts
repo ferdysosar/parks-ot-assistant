@@ -1,102 +1,190 @@
-import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component } from '@angular/core';
 
 @Component({
-    selector: 'features-widget',
-    standalone: true,
-    imports: [CommonModule],
-    template: ` <div id="features" class="py-6 px-6 lg:px-20 mt-8 mx-0 lg:mx-20">
-        <div class="grid grid-cols-12 gap-4 justify-center">
-            <div class="col-span-12 text-center mt-20 mb-6">
-                <div class="text-surface-900 dark:text-surface-0 font-normal mb-2 text-4xl">Funciones principales</div>
-                <span class="text-muted-color text-2xl">Consultas rápidas y trazabilidad de órdenes de trabajo</span>
-            </div>
+  selector: 'features-widget',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <section
+      id="funciones"
+      class="relative py-24 lg:py-28 text-white overflow-hidden"
+      style="
+        background:
+          radial-gradient(circle at 20% 10%, rgba(34, 211, 238, 0.10), transparent 25%),
+          radial-gradient(circle at 80% 20%, rgba(14, 165, 233, 0.10), transparent 22%),
+          linear-gradient(180deg, #081321 0%, #0b1a2c 100%);
+      "
+    >
+      <div class="absolute inset-0 opacity-10 pointer-events-none">
+        <div
+          class="absolute inset-0"
+          style="
+            background-image:
+              linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+            background-size: 42px 42px;
+          "
+        ></div>
+      </div>
 
-            <div class="col-span-12 md:col-span-12 lg:col-span-4 p-0 lg:pr-8 lg:pb-8 mt-6 lg:mt-0">
-                <div style="height: 190px; padding: 2px; border-radius: 10px; background: linear-gradient(90deg, rgba(253, 228, 165, 0.2), rgba(187, 199, 205, 0.2)), linear-gradient(180deg, rgba(253, 228, 165, 0.2), rgba(187, 199, 205, 0.2))">
-                    <div class="p-4 bg-surface-0 dark:bg-surface-900 h-full" style="border-radius: 8px">
-                        <div class="flex items-center justify-center bg-yellow-200 mb-4" style="width: 3.5rem; height: 3.5rem; border-radius: 10px">
-                            <i class="pi pi-fw pi-building text-2xl! text-yellow-700"></i>
-                        </div>
-                        <h5 class="mb-2 text-surface-900 dark:text-surface-0">Consulta por empresa o embarcación</h5>
-                        <span class="text-surface-600 dark:text-surface-200">Permitirá buscar órdenes de trabajo por empresa, barco o activo específico.</span>
-                    </div>
-                </div>
-            </div>
+      <div class="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent"></div>
+      <div class="absolute -top-16 left-10 w-72 h-72 bg-cyan-400/10 blur-3xl rounded-full"></div>
+      <div class="absolute bottom-0 right-10 w-80 h-80 bg-sky-500/10 blur-3xl rounded-full"></div>
 
-            <div class="col-span-12 md:col-span-12 lg:col-span-4 p-0 lg:pr-8 lg:pb-8 mt-6 lg:mt-0">
-                <div style="height: 190px; padding: 2px; border-radius: 10px; background: linear-gradient(90deg, rgba(145, 226, 237, 0.2), rgba(251, 199, 145, 0.2)), linear-gradient(180deg, rgba(253, 228, 165, 0.2), rgba(172, 180, 223, 0.2))">
-                    <div class="p-4 bg-surface-0 dark:bg-surface-900 h-full" style="border-radius: 8px">
-                        <div class="flex items-center justify-center bg-cyan-200 mb-4" style="width: 3.5rem; height: 3.5rem; border-radius: 10px">
-                            <i class="pi pi-fw pi-history text-2xl! text-cyan-700"></i>
-                        </div>
-                        <h5 class="mb-2 text-surface-900 dark:text-surface-0">Historial de trabajos realizados</h5>
-                        <span class="text-surface-600 dark:text-surface-200">Mostrará intervenciones previas, fechas de ejecución y detalle de los trabajos realizados.</span>
-                    </div>
-                </div>
-            </div>
+      <div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-12">
+        <div class="max-w-3xl mx-auto text-center">
+          <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm mb-6">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+            Capacidades principales del sistema
+          </div>
 
-            <div class="col-span-12 md:col-span-12 lg:col-span-4 p-0 lg:pb-8 mt-6 lg:mt-0">
-                <div style="height: 190px; padding: 2px; border-radius: 10px; background: linear-gradient(90deg, rgba(145, 226, 237, 0.2), rgba(172, 180, 223, 0.2)), linear-gradient(180deg, rgba(172, 180, 223, 0.2), rgba(246, 158, 188, 0.2))">
-                    <div class="p-4 bg-surface-0 dark:bg-surface-900 h-full" style="border-radius: 8px">
-                        <div class="flex items-center justify-center bg-indigo-200" style="width: 3.5rem; height: 3.5rem; border-radius: 10px">
-                            <i class="pi pi-fw pi-wrench text-2xl! text-indigo-700"></i>
-                        </div>
-                        <div class="mt-6 mb-1 text-surface-900 dark:text-surface-0 text-xl font-semibold">Materiales y recursos utilizados</div>
-                        <span class="text-surface-600 dark:text-surface-200">Permitirá consultar qué materiales, insumos o recursos fueron utilizados en cada OT.</span>
-                    </div>
-                </div>
-            </div>
+          <p class="text-sm md:text-base uppercase tracking-[0.35em] text-cyan-300 font-semibold mb-4">
+            Consulta estructurada · historial técnico · trazabilidad operativa
+          </p>
 
-            <div class="col-span-12 md:col-span-12 lg:col-span-4 p-0 lg:pr-8 lg:pb-8 mt-6 lg:mt-0">
-                <div style="height: 190px; padding: 2px; border-radius: 10px; background: linear-gradient(90deg, rgba(187, 199, 205, 0.2), rgba(251, 199, 145, 0.2)), linear-gradient(180deg, rgba(253, 228, 165, 0.2), rgba(145, 210, 204, 0.2))">
-                    <div class="p-4 bg-surface-0 dark:bg-surface-900 h-full" style="border-radius: 8px">
-                        <div class="flex items-center justify-center bg-slate-200 mb-4" style="width: 3.5rem; height: 3.5rem; border-radius: 10px">
-                            <i class="pi pi-fw pi-map-marker text-2xl! text-slate-700"></i>
-                        </div>
-                        <div class="mt-6 mb-1 text-surface-900 dark:text-surface-0 text-xl font-semibold">Consulta por fecha y ubicación</div>
-                        <span class="text-surface-600 dark:text-surface-200">Ayudará a encontrar órdenes por fecha, puerto, lugar o ubicación del activo intervenido.</span>
-                    </div>
-                </div>
-            </div>
+          <h2
+            class="text-4xl md:text-5xl font-extrabold tracking-tight"
+            style="color: #ffffff; text-shadow: 0 0 10px rgba(255,255,255,0.10);"
+          >
+            Funciones principales
+          </h2>
 
-            <div class="col-span-12 md:col-span-12 lg:col-span-4 p-0 lg:pr-8 lg:pb-8 mt-6 lg:mt-0">
-                <div style="height: 190px; padding: 2px; border-radius: 10px; background: linear-gradient(90deg, rgba(187, 199, 205, 0.2), rgba(246, 158, 188, 0.2)), linear-gradient(180deg, rgba(145, 226, 237, 0.2), rgba(160, 210, 250, 0.2))">
-                    <div class="p-4 bg-surface-0 dark:bg-surface-900 h-full" style="border-radius: 8px">
-                        <div class="flex items-center justify-center bg-orange-200 mb-4" style="width: 3.5rem; height: 3.5rem; border-radius: 10px">
-                            <i class="pi pi-fw pi-exclamation-circle text-2xl! text-orange-700"></i>
-                        </div>
-                        <div class="mt-6 mb-1 text-surface-900 dark:text-surface-0 text-xl font-semibold">Observaciones y pendientes</div>
-                        <span class="text-surface-600 dark:text-surface-200">Permitirá identificar trabajos pendientes, novedades y observaciones registradas en la orden.</span>
-                    </div>
-                </div>
-            </div>
+          <div class="mt-5 w-24 h-1 mx-auto rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"></div>
 
-            <div class="col-span-12 md:col-span-12 lg:col-span-4 p-0 lg:pb-8 mt-6 lg:mt-0">
-                <div style="height: 190px; padding: 2px; border-radius: 10px; background: linear-gradient(90deg, rgba(251, 199, 145, 0.2), rgba(246, 158, 188, 0.2)), linear-gradient(180deg, rgba(172, 180, 223, 0.2), rgba(212, 162, 221, 0.2))">
-                    <div class="p-4 bg-surface-0 dark:bg-surface-900 h-full" style="border-radius: 8px">
-                        <div class="flex items-center justify-center bg-pink-200 mb-4" style="width: 3.5rem; height: 3.5rem; border-radius: 10px">
-                            <i class="pi pi-fw pi-comments text-2xl! text-pink-700"></i>
-                        </div>
-                        <div class="mt-6 mb-1 text-surface-900 dark:text-surface-0 text-xl font-semibold">Consultas en lenguaje natural</div>
-                        <span class="text-surface-600 dark:text-surface-200">El usuario podrá hacer preguntas directas como si estuviera hablando con un asistente humano.</span>
-                    </div>
-                </div>
-            </div>
-
-            <div
-                class="col-span-12 mt-20 mb-20 p-2 md:p-20"
-                style="border-radius: 20px; background: linear-gradient(0deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)), radial-gradient(77.36% 256.97% at 77.36% 57.52%, #efe1af 0%, #c3dcfa 100%)"
-            >
-                <div class="flex flex-col justify-center items-center text-center px-4 py-4 md:py-0">
-                    <div class="text-gray-900 mb-2 text-3xl font-semibold">Parks OT Assistant</div>
-                    <span class="text-gray-600 text-2xl">Prototipo académico con proyección empresarial</span>
-                    <p class="text-gray-900 sm:line-height-2 md:line-height-4 text-2xl mt-6" style="max-width: 800px">
-                        Esta solución busca facilitar la consulta de órdenes de trabajo dentro de Parks Ingeniería, mejorando la trazabilidad operativa y reduciendo el tiempo de búsqueda de información clave.
-                    </p>
-                </div>
-            </div>
+          <p class="mt-6 text-lg leading-relaxed" style="color: #f8fafc;">
+            Un enfoque pensado para consultar órdenes de trabajo con rapidez, contexto
+            técnico y visibilidad clara sobre empresas, activos, responsables y materiales.
+          </p>
         </div>
-    </div>`
+
+        <div class="mt-14 grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-7 shadow-xl hover:border-cyan-400/30 transition">
+            <div class="w-14 h-14 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 flex items-center justify-center mb-5">
+              <svg class="w-7 h-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 7h18M6 3h12v18H6z" />
+              </svg>
+            </div>
+
+            <h3
+              class="text-2xl font-bold"
+              style="color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.08);"
+            >
+              Consulta por empresa o activo
+            </h3>
+
+            <p class="mt-4 leading-relaxed" style="color: #e2e8f0;">
+              Permite localizar órdenes de trabajo asociadas a una empresa, embarcación
+              o unidad específica, reduciendo tiempos de búsqueda.
+            </p>
+          </div>
+
+          <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-7 shadow-xl hover:border-cyan-400/30 transition">
+            <div class="w-14 h-14 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 flex items-center justify-center mb-5">
+              <svg class="w-7 h-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 8v4l3 3" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+
+            <h3
+              class="text-2xl font-bold"
+              style="color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.08);"
+            >
+              Historial de trabajos realizados
+            </h3>
+
+            <p class="mt-4 leading-relaxed" style="color: #e2e8f0;">
+              Muestra intervenciones previas, fechas y antecedentes técnicos para dar
+              continuidad a cada orden registrada.
+            </p>
+          </div>
+
+          <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-7 shadow-xl hover:border-cyan-400/30 transition">
+            <div class="w-14 h-14 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 flex items-center justify-center mb-5">
+              <svg class="w-7 h-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M14.7 6.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-7.8 7.8L6 18l.9-3.9 7.8-7.8z" />
+              </svg>
+            </div>
+
+            <h3
+              class="text-2xl font-bold"
+              style="color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.08);"
+            >
+              Materiales y recursos utilizados
+            </h3>
+
+            <p class="mt-4 leading-relaxed" style="color: #e2e8f0;">
+              Facilita identificar materiales, insumos y recursos aplicados en cada trabajo,
+              mejorando control y trazabilidad técnica.
+            </p>
+          </div>
+
+          <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-7 shadow-xl hover:border-cyan-400/30 transition">
+            <div class="w-14 h-14 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 flex items-center justify-center mb-5">
+              <svg class="w-7 h-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 21s7-4.5 7-11a7 7 0 1 0-14 0c0 6.5 7 11 7 11z" />
+                <circle cx="12" cy="10" r="2.5" />
+              </svg>
+            </div>
+
+            <h3
+              class="text-2xl font-bold"
+              style="color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.08);"
+            >
+              Consulta por fecha y ubicación
+            </h3>
+
+            <p class="mt-4 leading-relaxed" style="color: #e2e8f0;">
+              Ayuda a ubicar órdenes según fecha, puerto, terminal o punto operativo
+              donde se realizó la intervención.
+            </p>
+          </div>
+
+          <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-7 shadow-xl hover:border-cyan-400/30 transition">
+            <div class="w-14 h-14 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 flex items-center justify-center mb-5">
+              <svg class="w-7 h-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 9v4" />
+                <path d="M12 17h.01" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+
+            <h3
+              class="text-2xl font-bold"
+              style="color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.08);"
+            >
+              Observaciones y pendientes
+            </h3>
+
+            <p class="mt-4 leading-relaxed" style="color: #e2e8f0;">
+              Permite revisar novedades, hallazgos técnicos, seguimientos y pendientes
+              asociados a cada orden de trabajo.
+            </p>
+          </div>
+
+          <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-7 shadow-xl hover:border-cyan-400/30 transition">
+            <div class="w-14 h-14 rounded-2xl border border-cyan-400/20 bg-cyan-400/10 flex items-center justify-center mb-5">
+              <svg class="w-7 h-7 text-cyan-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+
+            <h3
+              class="text-2xl font-bold"
+              style="color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.08);"
+            >
+              Consultas en lenguaje natural
+            </h3>
+
+            <p class="mt-4 leading-relaxed" style="color: #e2e8f0;">
+              Prepara la base para que el usuario consulte información de forma directa,
+              como si estuviera conversando con un asistente operativo.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  `
 })
 export class FeaturesWidget {}
