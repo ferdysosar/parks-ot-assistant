@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import otsData from '../../../assets/ots-demo.json';
 
@@ -49,7 +49,9 @@ interface ChatContext {
     templateUrl: './chat-widget.html',
     styleUrl: './chat-widget.scss'
 })
-export class ChatWidget {
+export class ChatWidget implements AfterViewChecked {
+    @ViewChild('chatContainer') private chatContainer?: ElementRef<HTMLDivElement>;
+
     isOpen = false;
     userInput = '';
 
@@ -66,8 +68,21 @@ export class ChatWidget {
         value: null
     };
 
+    private shouldScrollToBottom = false;
+
+    ngAfterViewChecked(): void {
+        if (this.shouldScrollToBottom) {
+            this.forceScrollToBottom();
+            this.shouldScrollToBottom = false;
+        }
+    }
+
     toggleChat(): void {
         this.isOpen = !this.isOpen;
+
+        if (this.isOpen) {
+            this.requestScrollToBottom();
+        }
     }
 
     sendMessage(): void {
@@ -80,6 +95,9 @@ export class ChatWidget {
             text: raw
         });
 
+        this.userInput = '';
+        this.requestScrollToBottom();
+
         const response = this.resolveQuery(raw);
 
         this.messages.push({
@@ -87,7 +105,23 @@ export class ChatWidget {
             text: response
         });
 
-        this.userInput = '';
+        this.requestScrollToBottom();
+    }
+
+    private requestScrollToBottom(): void {
+        this.shouldScrollToBottom = true;
+    }
+
+    private forceScrollToBottom(): void {
+        const container = this.chatContainer?.nativeElement;
+        if (!container) return;
+
+        container.scrollTop = container.scrollHeight;
+
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
     }
 
     private resolveQuery(query: string): string {
@@ -232,10 +266,6 @@ export class ChatWidget {
                 return 'Perdí el contexto de la OT anterior. Probá consultándola de nuevo.';
             }
 
-            if (this.isDetailRequest(normalizedQuery) || this.isWorkRequest(normalizedQuery)) {
-                return this.formatSingleOt(ot);
-            }
-
             return this.formatSingleOt(ot);
         }
 
@@ -351,12 +381,13 @@ export class ChatWidget {
     } {
         const normalizedQuery = this.normalizeText(query);
 
-        const otMatch = this.extractOtNumber(query);
-        if (otMatch) {
+        const otMatch = query.match(/ot[\s-]*(\d{1,})/i);
+        if (otMatch?.[1]) {
+            const number = otMatch[1].padStart(3, '0');
             return {
                 intent: 'ot',
-                value: otMatch,
-                originalEntity: otMatch
+                value: `OT-${number}`,
+                originalEntity: `OT-${number}`
             };
         }
 
@@ -378,19 +409,11 @@ export class ChatWidget {
         ]);
 
         if (asksForCompany && !asksForAsset) {
-            return {
-                intent: 'empresa',
-                value: null,
-                originalEntity: ''
-            };
+            return { intent: 'empresa', value: null, originalEntity: '' };
         }
 
         if (asksForAsset && !asksForCompany) {
-            return {
-                intent: 'activo',
-                value: null,
-                originalEntity: ''
-            };
+            return { intent: 'activo', value: null, originalEntity: '' };
         }
 
         const matchedCompany = this.matchKnownCompany(normalizedQuery);
@@ -411,20 +434,7 @@ export class ChatWidget {
             };
         }
 
-        return {
-            intent: 'unknown',
-            value: null,
-            originalEntity: ''
-        };
-    }
-
-    private extractOtNumber(query: string): string | null {
-        const match = query.match(/ot[\s-]*(\d{1,})/i);
-
-        if (!match?.[1]) return null;
-
-        const number = match[1].padStart(3, '0');
-        return `OT-${number}`;
+        return { intent: 'unknown', value: null, originalEntity: '' };
     }
 
     private findOtByNumber(otNumber: string): OtItem | undefined {
@@ -500,9 +510,7 @@ export class ChatWidget {
 
         const all = [...otCandidates, ...companyCandidates, ...assetCandidates].filter((item) => item.score >= 45).sort((a, b) => b.score - a.score);
 
-        if (!all.length) {
-            return { mode: 'none' };
-        }
+        if (!all.length) return { mode: 'none' };
 
         const uniqueStrongMatches: RankedMatch[] = [];
 
@@ -523,9 +531,7 @@ export class ChatWidget {
             };
         }
 
-        if (all[0].score < 65) {
-            return { mode: 'none' };
-        }
+        if (all[0].score < 65) return { mode: 'none' };
 
         return {
             mode: 'single',
@@ -534,9 +540,13 @@ export class ChatWidget {
     }
 
     private scoreOtQuery(query: string, otValue: string): number {
-        const extracted = this.extractOtNumber(query);
-        if (extracted && this.normalizeText(extracted) === this.normalizeText(otValue)) {
-            return 120;
+        const otMatch = query.match(/ot[\s-]*(\d{1,})/i);
+        if (otMatch?.[1]) {
+            const extracted = `OT-${otMatch[1].padStart(3, '0')}`;
+
+            if (this.normalizeText(extracted) === this.normalizeText(otValue)) {
+                return 120;
+            }
         }
 
         const normalizedQuery = this.cleanQueryForSearch(this.normalizeText(query));
@@ -566,14 +576,10 @@ export class ChatWidget {
             }
         }
 
-        if (matchedTokens === 1 && strongMatches === 0) {
-            return 0;
-        }
-
+        if (matchedTokens === 1 && strongMatches === 0) return 0;
         if (matchedTokens === 0) return 0;
 
         score += matchedTokens * 8;
-
         if (matchedTokens >= 2) score += 12;
         if (matchedTokens >= 3) score += 18;
 
@@ -616,13 +622,10 @@ export class ChatWidget {
 
         for (const qWord of queryWords) {
             for (const tWord of targetWords) {
-                if (qWord === tWord) {
-                    score += 25;
-                } else if (tWord.startsWith(qWord) || qWord.startsWith(tWord)) {
-                    score += 18;
-                } else if (tWord.includes(qWord) || qWord.includes(tWord)) {
-                    score += 12;
-                } else if (qWord.length >= 4 && tWord.length >= 4 && this.levenshtein(qWord, tWord) === 1) {
+                if (qWord === tWord) score += 25;
+                else if (tWord.startsWith(qWord) || qWord.startsWith(tWord)) score += 18;
+                else if (tWord.includes(qWord) || qWord.includes(tWord)) score += 12;
+                else if (qWord.length >= 4 && tWord.length >= 4 && this.levenshtein(qWord, tWord) === 1) {
                     score += 10;
                 }
             }
@@ -652,13 +655,8 @@ export class ChatWidget {
     private levenshtein(a: string, b: string): number {
         const matrix: number[][] = [];
 
-        for (let i = 0; i <= b.length; i++) {
-            matrix[i] = [i];
-        }
-
-        for (let j = 0; j <= a.length; j++) {
-            matrix[0][j] = j;
-        }
+        for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+        for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
 
         for (let i = 1; i <= b.length; i++) {
             for (let j = 1; j <= a.length; j++) {
