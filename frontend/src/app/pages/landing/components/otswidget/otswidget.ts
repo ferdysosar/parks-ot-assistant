@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import otsData from '../../../../../data/ots-demo.json';
 import empresasActivos from '../../../../../data/empresas-activos.json';
@@ -53,7 +53,6 @@ type EmpresaActivo = {
             </div>
 
             <div class="relative z-10 max-w-7xl mx-auto">
-                <!-- encabezado -->
                 <div class="max-w-3xl mx-auto text-center">
                     <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm mb-6">
                         <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
@@ -79,7 +78,6 @@ type EmpresaActivo = {
                     </p>
                 </div>
 
-                <!-- filtros -->
                 <div class="mt-14 max-w-5xl mx-auto">
                     <div class="grid md:grid-cols-2 gap-6">
                         <div class="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 shadow-xl">
@@ -107,6 +105,7 @@ type EmpresaActivo = {
 
                             <select
                                 [(ngModel)]="activoSeleccionado"
+                                (ngModelChange)="onActivoChange()"
                                 class="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none"
                                 style="color: #ffffff;"
                             >
@@ -119,97 +118,125 @@ type EmpresaActivo = {
                     </div>
                 </div>
 
-                <!-- resultados -->
-                <div class="mt-12 max-w-5xl mx-auto space-y-6">
+                <div class="mt-12 max-w-6xl mx-auto">
                     <ng-container *ngIf="otsFiltradas.length > 0; else sinResultados">
-                        <article
-                            *ngFor="let ot of otsFiltradas"
-                            class="rounded-[2rem] border border-white/10 bg-slate-950/65 backdrop-blur-xl shadow-2xl overflow-hidden"
-                        >
-                            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 px-6 py-5 border-b border-white/10 bg-white/5">
-                                <div>
-                                    <div class="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">
-                                        {{ ot.ot_numero }}
-                                    </div>
-                                    <h3 class="text-3xl font-bold" style="color: #ffffff;">
-                                        {{ ot.activo }}
-                                    </h3>
-                                    <p class="mt-2 text-base" style="color: #cbd5e1;">
-                                        {{ ot.empresa }}
-                                    </p>
-                                </div>
+                        <div class="flex items-center justify-center mb-6 gap-3">
+                            <button
+                                type="button"
+                                (click)="anteriorGrupo()"
+                                class="inline-flex items-center justify-center w-11 h-11 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition"
+                                style="color: #ffffff;"
+                            >
+                                ←
+                            </button>
 
-                                <div class="flex flex-col md:items-end gap-2">
-                                    <div class="text-sm" style="color: #e2e8f0;">
-                                        {{ ot.fecha }}
-                                    </div>
-                                    <div class="inline-flex items-center px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm">
-                                        {{ ot.tipo }}
-                                    </div>
-                                </div>
+                            <div class="text-sm tracking-[0.2em] uppercase text-cyan-300">
+                                Vista rotativa
                             </div>
 
-                            <div class="p-6 lg:p-7">
-                                <div class="grid md:grid-cols-2 gap-4">
-                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                            Motivo
+                            <button
+                                type="button"
+                                (click)="siguienteGrupo()"
+                                class="inline-flex items-center justify-center w-11 h-11 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition"
+                                style="color: #ffffff;"
+                            >
+                                →
+                            </button>
+                        </div>
+
+                        <div class="relative min-h-[720px] lg:min-h-[650px]">
+                            <div
+                                class="grid lg:grid-cols-2 gap-6 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                                [class.opacity-100]="animState === 'visible'"
+                                [class.translate-x-0]="animState === 'visible'"
+                                [class.opacity-0]="animState !== 'visible'"
+                                [class.translate-x-6]="animState === 'next'"
+                                [class.-translate-x-6]="animState === 'prev'"
+                            >
+                                <article
+                                    *ngFor="let ot of otsVisibles"
+                                    class="rounded-[2rem] border border-white/10 bg-slate-950/65 backdrop-blur-xl shadow-2xl overflow-hidden"
+                                >
+                                    <div class="flex flex-col gap-4 px-6 py-5 border-b border-white/10 bg-white/5">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div>
+                                                <div class="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">
+                                                    {{ ot.ot_numero }}
+                                                </div>
+                                                <h3 class="text-3xl font-bold leading-tight" style="color: #ffffff;">
+                                                    {{ ot.activo }}
+                                                </h3>
+                                                <p class="mt-2 text-base" style="color: #cbd5e1;">
+                                                    {{ ot.empresa }}
+                                                </p>
+                                            </div>
+
+                                            <div class="inline-flex items-center px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm whitespace-nowrap">
+                                                {{ ot.tipo }}
+                                            </div>
                                         </div>
-                                        <div class="mt-2 text-slate-100 leading-relaxed">
-                                            {{ ot.materiales.join(', ') }}
+
+                                        <div class="text-sm" style="color: #e2e8f0;">
+                                            {{ ot.fecha }} · {{ ot.ubicacion }}
                                         </div>
                                     </div>
 
-                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                            Ubicación
-                                        </div>
-                                        <div class="mt-2 text-slate-100 leading-relaxed">
-                                            {{ ot.ubicacion }}
-                                        </div>
-                                    </div>
+                                    <div class="p-6 lg:p-7">
+                                        <div class="grid gap-4">
+                                            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Motivo
+                                                </div>
+                                                <div class="mt-2 text-slate-100 leading-relaxed">
+                                                    {{ ot.motivo }}
+                                                </div>
+                                            </div>
 
-                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2">
-                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                            Trabajo realizado
-                                        </div>
-                                        <div class="mt-2 text-slate-100 leading-relaxed">
-                                            {{ ot.trabajo_realizado }}
-                                        </div>
-                                    </div>
+                                            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Trabajo realizado
+                                                </div>
+                                                <div class="mt-2 text-slate-100 leading-relaxed">
+                                                    {{ ot.trabajo_realizado }}
+                                                </div>
+                                            </div>
 
-                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                            Responsable
-                                        </div>
-                                        <div class="mt-2 text-slate-100 leading-relaxed">
-                                            {{ ot.responsable }}
-                                        </div>
-                                    </div>
+                                            <div class="grid sm:grid-cols-2 gap-4">
+                                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                    <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                        Responsable
+                                                    </div>
+                                                    <div class="mt-2 text-slate-100 leading-relaxed">
+                                                        {{ ot.responsable }}
+                                                    </div>
+                                                </div>
 
-                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                            Materiales
-                                        </div>
-                                        <div class="mt-2 text-slate-100 leading-relaxed">
-                                            {{ ot.materiales }}
-                                        </div>
-                                    </div>
+                                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                    <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                        Materiales
+                                                    </div>
+                                                    <div class="mt-2 text-slate-100 leading-relaxed">
+                                                        {{ ot.materiales.join(', ') }}
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    <div
-                                        *ngIf="ot.observaciones"
-                                        class="rounded-2xl border border-white/10 bg-white/5 p-4 md:col-span-2"
-                                    >
-                                        <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                            Observaciones
-                                        </div>
-                                        <div class="mt-2 text-slate-100 leading-relaxed">
-                                            {{ ot.observaciones }}
+                                            <div
+                                                *ngIf="ot.observaciones"
+                                                class="rounded-2xl border border-white/10 bg-white/5 p-4"
+                                            >
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Observaciones
+                                                </div>
+                                                <div class="mt-2 text-slate-100 leading-relaxed">
+                                                    {{ ot.observaciones }}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                </article>
                             </div>
-                        </article>
+                        </div>
                     </ng-container>
 
                     <ng-template #sinResultados>
@@ -230,7 +257,7 @@ type EmpresaActivo = {
         </section>
     `
 })
-export class OtsWidget {
+export class OtsWidget implements OnInit, OnDestroy {
     ots: OTDemo[] = otsData as OTDemo[];
     catalogo: EmpresaActivo[] = empresasActivos as EmpresaActivo[];
 
@@ -240,9 +267,27 @@ export class OtsWidget {
     empresasUnicas: string[] = [];
     activosDisponibles: string[] = [];
 
+    otsVisibles: OTDemo[] = [];
+    indiceActual = 0;
+    cantidadVisible = 2;
+    animState: 'visible' | 'next' | 'prev' = 'visible';
+
+    private intervaloId: ReturnType<typeof setInterval> | null = null;
+    private timeoutSalidaId: ReturnType<typeof setTimeout> | null = null;
+
     constructor() {
         this.empresasUnicas = this.catalogo.map((item) => item.empresa);
         this.actualizarActivosDisponibles();
+    }
+
+    ngOnInit(): void {
+        this.actualizarOtsVisibles();
+        this.iniciarRotacion();
+    }
+
+    ngOnDestroy(): void {
+        if (this.intervaloId) clearInterval(this.intervaloId);
+        if (this.timeoutSalidaId) clearTimeout(this.timeoutSalidaId);
     }
 
     get otsFiltradas(): OTDemo[] {
@@ -256,6 +301,11 @@ export class OtsWidget {
     onEmpresaChange(): void {
         this.activoSeleccionado = '';
         this.actualizarActivosDisponibles();
+        this.reiniciarRotacion();
+    }
+
+    onActivoChange(): void {
+        this.reiniciarRotacion();
     }
 
     actualizarActivosDisponibles(): void {
@@ -266,5 +316,84 @@ export class OtsWidget {
 
         const empresa = this.catalogo.find((item) => item.empresa === this.empresaSeleccionada);
         this.activosDisponibles = empresa ? empresa.activos : [];
+    }
+
+    actualizarOtsVisibles(): void {
+        const lista = this.otsFiltradas;
+
+        if (lista.length === 0) {
+            this.otsVisibles = [];
+            return;
+        }
+
+        const visibles = lista.slice(this.indiceActual, this.indiceActual + this.cantidadVisible);
+
+        if (visibles.length < this.cantidadVisible) {
+            this.otsVisibles = [
+                ...visibles,
+                ...lista.slice(0, this.cantidadVisible - visibles.length)
+            ];
+            return;
+        }
+
+        this.otsVisibles = visibles;
+    }
+
+    avanzarGrupo(direccion: 'next' | 'prev', reiniciarTimer = false): void {
+        if (this.otsFiltradas.length <= this.cantidadVisible) return;
+
+        this.ejecutarTransicion(direccion, () => {
+            if (direccion === 'next') {
+                this.indiceActual = (this.indiceActual + this.cantidadVisible) % this.otsFiltradas.length;
+            } else {
+                const total = this.otsFiltradas.length;
+                this.indiceActual = (this.indiceActual - this.cantidadVisible + total) % total;
+            }
+
+            this.actualizarOtsVisibles();
+        });
+
+        if (reiniciarTimer) {
+            this.reiniciarIntervalo();
+        }
+    }
+
+    siguienteGrupo(): void {
+        this.avanzarGrupo('next', true);
+    }
+
+    anteriorGrupo(): void {
+        this.avanzarGrupo('prev', true);
+    }
+
+    iniciarRotacion(): void {
+        this.intervaloId = setInterval(() => {
+            if (this.otsFiltradas.length > this.cantidadVisible) {
+                this.avanzarGrupo('next', false);
+            }
+        }, 5000);
+    }
+
+    reiniciarIntervalo(): void {
+        if (this.intervaloId) clearInterval(this.intervaloId);
+        this.iniciarRotacion();
+    }
+
+    reiniciarRotacion(): void {
+        this.indiceActual = 0;
+        this.actualizarOtsVisibles();
+        this.animState = 'visible';
+        this.reiniciarIntervalo();
+    }
+
+    ejecutarTransicion(direccion: 'next' | 'prev', callback: () => void): void {
+        if (this.timeoutSalidaId) clearTimeout(this.timeoutSalidaId);
+
+        this.animState = direccion;
+
+        this.timeoutSalidaId = setTimeout(() => {
+            callback();
+            this.animState = 'visible';
+        }, 260);
     }
 }
