@@ -1,29 +1,37 @@
+import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
-import { RouterModule } from '@angular/router';
 import { TopbarWidget } from './components/topbarwidget.component';
 import { HeroWidget } from './components/herowidget';
 import { FeaturesWidget } from './components/featureswidget';
-import { FooterWidget } from './components/footerwidget';
 import { DemoWidget } from './components/demowidget/demowidget';
 import { OtsWidget } from './components/otswidget/otswidget';
 import { Companieswidget } from './components/companieswidget/companieswidget';
+import { FooterWidget } from './components/footerwidget';
+import { ChatWidget } from '../../shared/chat-widget/chat-widget';
 
 @Component({
     selector: 'app-landing',
     standalone: true,
-    imports: [RouterModule, TopbarWidget, HeroWidget, FeaturesWidget, DemoWidget, OtsWidget, Companieswidget, FooterWidget],
+    imports: [
+        CommonModule,
+        TopbarWidget,
+        HeroWidget,
+        FeaturesWidget,
+        DemoWidget,
+        OtsWidget,
+        Companieswidget,
+        FooterWidget,
+        ChatWidget
+    ],
     template: `
-        <div class="bg-surface-0 dark:bg-surface-900">
-            <div id="home" class="landing-wrapper overflow-hidden">
-                <topbar-widget class="py-6 px-6 mx-0 md:mx-12 lg:mx-20 lg:px-20 flex items-center justify-between relative lg:static" />
-                <hero-widget />
-                <features-widget />
-                <demo-widget />
-                <ots-widget />
-                <companies-widget />
-                <footer-widget />
-            </div>
-        </div>
+        <topbar-widget />
+        <hero-widget />
+        <features-widget />
+        <demo-widget />
+        <ots-widget />
+        <companies-widget />
+        <footer-widget />
+        <chat-widget />
     `
 })
 export class Landing {}
