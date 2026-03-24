@@ -37,6 +37,11 @@ interface GlobalResolution {
     matches?: RankedMatch[];
 }
 
+interface ChatContext {
+    type: GlobalMatchType | null;
+    value: string | null;
+}
+
 @Component({
     selector: 'app-chat-widget',
     standalone: true,
@@ -56,6 +61,10 @@ export class ChatWidget {
     ];
 
     private ots: OtItem[] = (otsData as OtItem[]) ?? [];
+    private lastContext: ChatContext = {
+        type: null,
+        value: null
+    };
 
     toggleChat(): void {
         this.isOpen = !this.isOpen;
@@ -82,10 +91,18 @@ export class ChatWidget {
     }
 
     private resolveQuery(query: string): string {
+        const normalizedQuery = this.normalizeText(query);
+
+        if (this.isContextualFollowUp(normalizedQuery) && this.lastContext.type && this.lastContext.value) {
+            return this.resolveUsingContext(normalizedQuery);
+        }
+
         const parsed = this.parseQuery(query);
         const globalResolution = this.findBestGlobalMatch(query);
 
         if (globalResolution.mode === 'multiple' && globalResolution.matches) {
+            this.clearContext();
+
             return this.formatMultipleMatches('Detecté múltiples coincidencias:', globalResolution.matches);
         }
 
@@ -96,6 +113,7 @@ export class ChatWidget {
                 return `No encontré la ${parsed.value}. Probá con otro número de OT.`;
             }
 
+            this.setContext('ot', ot.ot_numero);
             return this.formatSingleOt(ot);
         }
 
@@ -103,6 +121,8 @@ export class ChatWidget {
             const rankedCompanies = this.getBestMatches(query, 'empresa');
 
             if (rankedCompanies.length >= 2 && rankedCompanies[0].score >= 70 && rankedCompanies[1].score >= 70) {
+                this.clearContext();
+
                 return this.formatMultipleMatches(
                     'Detecté múltiples coincidencias de empresas:',
                     rankedCompanies.slice(0, 4).map((item) => ({
@@ -117,6 +137,12 @@ export class ChatWidget {
                 const bestCompany = rankedCompanies[0].value;
                 const results = this.ots.filter((item) => this.normalizeText(item.empresa) === this.normalizeText(bestCompany));
 
+                this.setContext('empresa', bestCompany);
+
+                if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+                    return this.formatSingleOt(results[0]);
+                }
+
                 return this.formatOtList(`Encontré ${results.length} orden(es) para la empresa "${bestCompany}":`, results);
             }
         }
@@ -125,6 +151,8 @@ export class ChatWidget {
             const rankedAssets = this.getBestMatches(query, 'activo');
 
             if (rankedAssets.length >= 2 && rankedAssets[0].score >= 70 && rankedAssets[1].score >= 70) {
+                this.clearContext();
+
                 return this.formatMultipleMatches(
                     'Detecté múltiples coincidencias de activos:',
                     rankedAssets.slice(0, 4).map((item) => ({
@@ -139,6 +167,12 @@ export class ChatWidget {
                 const bestAsset = rankedAssets[0].value;
                 const results = this.ots.filter((item) => this.normalizeText(item.activo) === this.normalizeText(bestAsset));
 
+                this.setContext('activo', bestAsset);
+
+                if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+                    return this.formatSingleOt(results[0]);
+                }
+
                 return this.formatOtList(`Encontré ${results.length} orden(es) para el activo "${bestAsset}":`, results);
             }
         }
@@ -149,11 +183,22 @@ export class ChatWidget {
             if (globalResult.type === 'ot') {
                 const ot = this.findOtByNumber(globalResult.value);
 
-                return ot ? this.formatSingleOt(ot) : 'Encontré una coincidencia probable, pero no pude resolverla correctamente.';
+                if (!ot) {
+                    return 'Encontré una coincidencia probable, pero no pude resolverla correctamente.';
+                }
+
+                this.setContext('ot', ot.ot_numero);
+                return this.formatSingleOt(ot);
             }
 
             if (globalResult.type === 'empresa') {
                 const results = this.ots.filter((item) => this.normalizeText(item.empresa) === this.normalizeText(globalResult.value));
+
+                this.setContext('empresa', globalResult.value);
+
+                if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+                    return this.formatSingleOt(results[0]);
+                }
 
                 return this.formatOtList(`Tomé como mejor coincidencia la empresa "${globalResult.value}". Encontré ${results.length} orden(es):`, results);
             }
@@ -161,11 +206,142 @@ export class ChatWidget {
             if (globalResult.type === 'activo') {
                 const results = this.ots.filter((item) => this.normalizeText(item.activo) === this.normalizeText(globalResult.value));
 
+                this.setContext('activo', globalResult.value);
+
+                if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+                    return this.formatSingleOt(results[0]);
+                }
+
                 return this.formatOtList(`Tomé como mejor coincidencia el activo "${globalResult.value}". Encontré ${results.length} orden(es):`, results);
             }
         }
 
         return 'No encontré resultados con esa consulta. Probá con una OT, una empresa o un activo. Ejemplos: "OT-002", "Aurora", "Río Norte", "Galerna".';
+    }
+
+    private resolveUsingContext(normalizedQuery: string): string {
+        if (!this.lastContext.type || !this.lastContext.value) {
+            return 'No tengo contexto previo suficiente. Probá nombrando una OT, empresa o activo.';
+        }
+
+        if (this.lastContext.type === 'ot') {
+            const ot = this.findOtByNumber(this.lastContext.value);
+
+            if (!ot) {
+                this.clearContext();
+                return 'Perdí el contexto de la OT anterior. Probá consultándola de nuevo.';
+            }
+
+            if (this.isDetailRequest(normalizedQuery) || this.isWorkRequest(normalizedQuery)) {
+                return this.formatSingleOt(ot);
+            }
+
+            return this.formatSingleOt(ot);
+        }
+
+        if (this.lastContext.type === 'activo') {
+            const results = this.ots.filter((item) => this.normalizeText(item.activo) === this.normalizeText(this.lastContext.value as string));
+
+            if (!results.length) {
+                this.clearContext();
+                return 'Perdí el contexto del activo anterior. Probá nombrándolo otra vez.';
+            }
+
+            if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+                return this.formatSingleOt(results[0]);
+            }
+
+            if (this.isWorkRequest(normalizedQuery)) {
+                return this.formatDetailedOtList(`Estos son los trabajos asociados al activo "${this.lastContext.value}":`, results);
+            }
+
+            return this.formatOtList(`Sigo con el activo "${this.lastContext.value}". Encontré ${results.length} orden(es):`, results);
+        }
+
+        if (this.lastContext.type === 'empresa') {
+            const results = this.ots.filter((item) => this.normalizeText(item.empresa) === this.normalizeText(this.lastContext.value as string));
+
+            if (!results.length) {
+                this.clearContext();
+                return 'Perdí el contexto de la empresa anterior. Probá nombrándola otra vez.';
+            }
+
+            if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+                return this.formatSingleOt(results[0]);
+            }
+
+            if (this.isWorkRequest(normalizedQuery)) {
+                return this.formatDetailedOtList(`Estos son los trabajos asociados a la empresa "${this.lastContext.value}":`, results);
+            }
+
+            return this.formatOtList(`Sigo con la empresa "${this.lastContext.value}". Encontré ${results.length} orden(es):`, results);
+        }
+
+        return 'No tengo contexto previo suficiente. Probá de nuevo.';
+    }
+
+    private isContextualFollowUp(normalizedQuery: string): boolean {
+        if (!this.lastContext.type || !this.lastContext.value) return false;
+
+        return this.includesAny(normalizedQuery, [
+            'y',
+            'y sus',
+            'sus',
+            'sus trabajos',
+            'sus ordenes',
+            'sus órdenes',
+            'que trabajos tiene',
+            'qué trabajos tiene',
+            'que trabajos hizo',
+            'qué trabajos hizo',
+            'mostrame el detalle',
+            'mostrar detalle',
+            'detalle',
+            'ver detalle',
+            'mas detalle',
+            'más detalle',
+            'ampliame',
+            'amplia',
+            'ampliar',
+            'quiero mas',
+            'quiero más',
+            'segui',
+            'seguí',
+            'continua',
+            'continúa'
+        ]);
+    }
+
+    private isWorkRequest(normalizedQuery: string): boolean {
+        return this.includesAny(normalizedQuery, ['trabajo', 'trabajos', 'orden', 'ordenes', 'órdenes', 'ot', 'ots', 'que hizo', 'qué hizo', 'que trabajos', 'qué trabajos', 'sus trabajos', 'sus ordenes', 'sus órdenes']);
+    }
+
+    private isDetailRequest(normalizedQuery: string): boolean {
+        return this.includesAny(normalizedQuery, [
+            'detalle',
+            'detalles',
+            'ver detalle',
+            'mostrame el detalle',
+            'mostrar detalle',
+            'ampliame',
+            'amplia',
+            'ampliar',
+            'completo',
+            'completa',
+            'info completa',
+            'informacion completa',
+            'información completa',
+            'mas info',
+            'más info'
+        ]);
+    }
+
+    private setContext(type: GlobalMatchType, value: string): void {
+        this.lastContext = { type, value };
+    }
+
+    private clearContext(): void {
+        this.lastContext = { type: null, value: null };
     }
 
     private parseQuery(query: string): {
@@ -384,14 +560,12 @@ export class ChatWidget {
                 matchedTokens++;
                 score += tokenScore;
 
-                // 🔥 contamos matches fuertes (no palabras genéricas)
                 if (token.length >= 4 && tokenScore >= 60) {
                     strongMatches++;
                 }
             }
         }
 
-        // ❌ si solo matchea 1 palabra débil → descartamos
         if (matchedTokens === 1 && strongMatches === 0) {
             return 0;
         }
@@ -626,6 +800,19 @@ export class ChatWidget {
         const limited = items.slice(0, 5);
 
         const lines = limited.map((item) => `• ${item.ot_numero} | ${item.activo} | ${item.empresa} | ${item.tipo}`);
+
+        const extra = items.length > limited.length ? [``, `Y ${items.length - limited.length} resultado(s) más.`] : [];
+
+        return [title, ``, ...lines, ...extra].join('\n');
+    }
+
+    private formatDetailedOtList(title: string, items: OtItem[]): string {
+        const limited = items.slice(0, 3);
+
+        const lines = limited.flatMap((item) => {
+            const trabajo = item.trabajo_realizado || 'Sin detalle cargado';
+            return [`• ${item.ot_numero} | ${item.activo} | ${item.tipo}`, `  Trabajo: ${trabajo}`];
+        });
 
         const extra = items.length > limited.length ? [``, `Y ${items.length - limited.length} resultado(s) más.`] : [];
 
