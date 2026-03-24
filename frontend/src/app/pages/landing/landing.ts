@@ -31,7 +31,7 @@ import { ChatWidget } from '../../shared/chat-widget/chat-widget';
         <ots-widget />
         <companies-widget />
         <footer-widget />
-        <chat-widget />
+        <app-chat-widget></app-chat-widget>
     `
 })
 export class Landing {}

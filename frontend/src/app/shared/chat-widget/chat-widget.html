@@ -1,1 +1,39 @@
-<p>chat-widget works!</p>
+<button class="chat-fab" type="button" (click)="toggleChat()">
+  💬
+</button>
+
+<div class="chat-panel" *ngIf="isOpen">
+  <div class="chat-header">
+    <div>
+      <h3>Parks OT Assistant</h3>
+      <p>Consulta OTs por número, empresa o activo</p>
+    </div>
+
+    <button class="chat-close" type="button" (click)="toggleChat()">
+      ✕
+    </button>
+  </div>
+
+  <div class="chat-body">
+    <div
+      *ngFor="let message of messages"
+      class="chat-message"
+      [ngClass]="message.role"
+    >
+      {{ message.text }}
+    </div>
+  </div>
+
+  <div class="chat-footer">
+    <input
+      type="text"
+      [(ngModel)]="userInput"
+      (keydown.enter)="sendMessage()"
+      placeholder="Escribí OT-001, Aurora I o Río Norte..."
+    />
+
+    <button type="button" (click)="sendMessage()">
+      Enviar
+    </button>
+  </div>
+</div>

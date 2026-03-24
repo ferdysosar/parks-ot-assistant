@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import otsData from '../../../../../data/ots-demo.json';
+import otsData from '../../../../../assets/ots-demo.json';
 import empresasActivos from '../../../../../data/empresas-activos.json';
 
 type OTDemo = {
