@@ -1,10 +1,26 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import otsData from '../../../../../data/ots-demo.json';
+
+type OTDemo = {
+    ot_numero: string;
+    empresa: string;
+    activo: string;
+    fecha: string;
+    tipo: string;
+    motivo: string;
+    trabajo_realizado: string;
+    materiales: string[];
+    responsable: string;
+    ubicacion: string;
+    observaciones?: string;
+};
 
 @Component({
     selector: 'demo-widget',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, FormsModule],
     template: `
         <section
             id="demo"
@@ -45,14 +61,14 @@ import { Component } from '@angular/core';
                         class="text-4xl md:text-5xl font-extrabold tracking-tight"
                         style="color: #ffffff;"
                     >
-                        Ejemplo de uso
+                        Demo funcional
                     </h2>
 
                     <div class="mt-5 w-24 h-1 mx-auto rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"></div>
 
                     <p class="mt-6 text-lg leading-relaxed" style="color: #e2e8f0;">
-                        Vista de ejemplo de cómo un usuario podría consultar información técnica
-                        de una orden de trabajo dentro del sistema.
+                        Probá consultas simples por número de OT, empresa o activo utilizando
+                        los registros demo cargados en el sistema.
                     </p>
                 </div>
 
@@ -69,57 +85,173 @@ import { Component } from '@angular/core';
                             </div>
 
                             <div class="text-xs text-cyan-300 border border-cyan-400/20 px-3 py-1 rounded-full bg-cyan-400/5">
-                                Demo conversacional
+                                Demo interactiva
                             </div>
                         </div>
 
-                        <div class="p-6 lg:p-8 space-y-5">
-                            <div class="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5">
-                                <div class="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">
-                                    Usuario
+                        <div class="p-6 lg:p-8">
+                            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 md:p-5">
+                                <label class="block text-sm font-semibold mb-3" style="color: #ffffff;">
+                                    Escribí una consulta
+                                </label>
+
+                                <div class="flex flex-col md:flex-row gap-3">
+                                    <input
+                                        [(ngModel)]="consulta"
+                                        (keyup.enter)="consultar()"
+                                        type="text"
+                                        placeholder="Ej: OT-001, Aurora I o Río Norte Logística"
+                                        class="flex-1 rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 outline-none"
+                                        style="color: #ffffff;"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        (click)="consultar()"
+                                        class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition"
+                                    >
+                                        Consultar
+                                    </button>
                                 </div>
-                                <p class="text-base md:text-lg leading-relaxed" style="color: #ffffff;">
-                                    ¿Qué trabajos se realizaron en el barco Piero Jesús en marzo?
-                                </p>
+
+                                <div class="mt-4 flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        (click)="usarEjemplo('OT-001')"
+                                        class="px-3 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm hover:bg-cyan-400/15 transition"
+                                    >
+                                        OT-001
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        (click)="usarEjemplo('Aurora I')"
+                                        class="px-3 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm hover:bg-cyan-400/15 transition"
+                                    >
+                                        Aurora I
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        (click)="usarEjemplo('Río Norte Logística')"
+                                        class="px-3 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm hover:bg-cyan-400/15 transition"
+                                    >
+                                        Río Norte Logística
+                                    </button>
+                                </div>
                             </div>
 
-                            <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-                                <div class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">
-                                    Asistente
-                                </div>
-                                <p class="text-base md:text-lg leading-relaxed" style="color: #f8fafc;">
-                                    Se registró un mantenimiento correctivo en el sistema de CCTV.
-                                    Se reemplazó una cámara IP y se verificó el cableado.
-                                    Quedó pendiente monitoreo por 48 horas.
-                                </p>
-                            </div>
-
-                            <div class="grid md:grid-cols-3 gap-4">
-                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                    <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                        Tipo
+                            <div class="mt-6 space-y-5">
+                                <div class="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-5">
+                                    <div class="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">
+                                        Usuario
                                     </div>
-                                    <div class="mt-2 text-slate-200 text-sm">
-                                        Mantenimiento correctivo
-                                    </div>
+                                    <p class="text-base md:text-lg leading-relaxed" style="color: #ffffff;">
+                                        {{ consultaMostrada || 'Todavía no se realizó ninguna consulta.' }}
+                                    </p>
                                 </div>
 
-                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                    <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                        Sistema
+                                <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
+                                    <div class="text-xs uppercase tracking-[0.2em] text-slate-400 mb-2">
+                                        Asistente
                                     </div>
-                                    <div class="mt-2 text-slate-200 text-sm">
-                                        CCTV
-                                    </div>
+
+                                    <p class="text-base leading-relaxed" style="color: #f8fafc;">
+                                        {{ respuesta }}
+                                    </p>
                                 </div>
 
-                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                    <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
-                                        Estado
-                                    </div>
-                                    <div class="mt-2 text-slate-200 text-sm">
-                                        Monitoreo pendiente
-                                    </div>
+                                <div *ngIf="resultados.length > 0" class="grid gap-4">
+                                    <article
+                                        *ngFor="let ot of resultados"
+                                        class="rounded-2xl border border-white/10 bg-slate-950/60 p-5"
+                                    >
+                                        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                                            <div>
+                                                <div class="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-2">
+                                                    {{ ot.ot_numero }}
+                                                </div>
+                                                <h3 class="text-2xl font-bold" style="color: #ffffff;">
+                                                    {{ ot.activo }}
+                                                </h3>
+                                                <p class="mt-1" style="color: #cbd5e1;">
+                                                    {{ ot.empresa }}
+                                                </p>
+                                            </div>
+
+                                            <div class="inline-flex items-center px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm">
+                                                {{ ot.tipo }}
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-5 grid md:grid-cols-2 gap-4">
+                                            <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Fecha
+                                                </div>
+                                                <div class="mt-2 text-slate-100">
+                                                    {{ ot.fecha }}
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Ubicación
+                                                </div>
+                                                <div class="mt-2 text-slate-100">
+                                                    {{ ot.ubicacion }}
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-xl border border-white/10 bg-white/5 p-4 md:col-span-2">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Motivo
+                                                </div>
+                                                <div class="mt-2 text-slate-100 leading-relaxed">
+                                                    {{ ot.motivo }}
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-xl border border-white/10 bg-white/5 p-4 md:col-span-2">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Trabajo realizado
+                                                </div>
+                                                <div class="mt-2 text-slate-100 leading-relaxed">
+                                                    {{ ot.trabajo_realizado }}
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Responsable
+                                                </div>
+                                                <div class="mt-2 text-slate-100">
+                                                    {{ ot.responsable }}
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Materiales
+                                                </div>
+                                                <div class="mt-2 text-slate-100">
+                                                    {{ ot.materiales.join(', ') }}
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                *ngIf="ot.observaciones"
+                                                class="rounded-xl border border-white/10 bg-white/5 p-4 md:col-span-2"
+                                            >
+                                                <div class="text-cyan-300 text-sm font-semibold uppercase tracking-wider">
+                                                    Observaciones
+                                                </div>
+                                                <div class="mt-2 text-slate-100 leading-relaxed">
+                                                    {{ ot.observaciones }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </article>
                                 </div>
                             </div>
                         </div>
@@ -129,4 +261,74 @@ import { Component } from '@angular/core';
         </section>
     `
 })
-export class DemoWidget {}
+export class DemoWidget {
+    ots: OTDemo[] = otsData as OTDemo[];
+
+    consulta = '';
+    consultaMostrada = '';
+    respuesta =
+        'Podés consultar por número de OT, por nombre de empresa o por nombre de activo.';
+    resultados: OTDemo[] = [];
+
+    usarEjemplo(valor: string): void {
+        this.consulta = valor;
+        this.consultar();
+    }
+
+    consultar(): void {
+        const texto = this.consulta.trim();
+
+        if (!texto) {
+            this.consultaMostrada = '';
+            this.resultados = [];
+            this.respuesta = 'Escribí una consulta para buscar registros demo.';
+            return;
+        }
+
+        this.consultaMostrada = texto;
+
+        const textoNormalizado = this.normalizar(texto);
+
+        const porNumero = this.ots.filter(
+            (ot) => this.normalizar(ot.ot_numero) === textoNormalizado
+        );
+
+        if (porNumero.length > 0) {
+            this.resultados = porNumero;
+            this.respuesta = `Se encontró ${porNumero.length} orden de trabajo por número exacto.`;
+            return;
+        }
+
+        const porActivo = this.ots.filter((ot) =>
+            this.normalizar(ot.activo).includes(textoNormalizado)
+        );
+
+        if (porActivo.length > 0) {
+            this.resultados = porActivo;
+            this.respuesta = `Se encontraron ${porActivo.length} órdenes asociadas al activo consultado.`;
+            return;
+        }
+
+        const porEmpresa = this.ots.filter((ot) =>
+            this.normalizar(ot.empresa).includes(textoNormalizado)
+        );
+
+        if (porEmpresa.length > 0) {
+            this.resultados = porEmpresa;
+            this.respuesta = `Se encontraron ${porEmpresa.length} órdenes asociadas a la empresa consultada.`;
+            return;
+        }
+
+        this.resultados = [];
+        this.respuesta =
+            'No se encontraron coincidencias en los registros demo. Probá con un número de OT, un activo o una empresa.';
+    }
+
+    normalizar(texto: string): string {
+        return texto
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+    }
+}

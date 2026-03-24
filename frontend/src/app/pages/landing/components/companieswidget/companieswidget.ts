@@ -13,7 +13,7 @@ type EmpresaActivo = {
     imports: [CommonModule],
     template: `
         <section
-            class="relative py-24 lg:py-28 px-6 lg:px-12 text-white overflow-hidden"
+            class="relative py-20 lg:py-24 px-6 lg:px-12 text-white overflow-hidden"
             style="
                 background:
                     radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.08), transparent 24%),
@@ -36,15 +36,14 @@ type EmpresaActivo = {
             </div>
 
             <div class="relative z-10 max-w-7xl mx-auto">
-                <!-- encabezado -->
                 <div class="max-w-3xl mx-auto text-center">
                     <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm mb-6">
                         <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-                        Catálogo estructural del sistema
+                        Estructura de referencia del sistema
                     </div>
 
                     <p class="text-sm md:text-base uppercase tracking-[0.35em] text-cyan-300 font-semibold mb-4">
-                        Empresas demo · activos asociados · estructura de consulta
+                        Empresas demo · activos asociados · navegación estructurada
                     </p>
 
                     <h2
@@ -57,15 +56,14 @@ type EmpresaActivo = {
                     <div class="mt-5 w-24 h-1 mx-auto rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"></div>
 
                     <p class="mt-6 text-lg leading-relaxed" style="color: #e2e8f0;">
-                        Base de referencia utilizada para estructurar la navegación entre empresas,
-                        embarcaciones y registros de órdenes dentro del asistente.
+                        Vista resumida de la estructura utilizada para relacionar empresas,
+                        embarcaciones y registros operativos dentro del asistente.
                     </p>
                 </div>
 
-                <!-- grid empresas -->
                 <div class="mt-14 grid md:grid-cols-2 gap-6">
                     <article
-                        *ngFor="let item of catalogo"
+                        *ngFor="let item of catalogoPreview"
                         class="rounded-[2rem] border border-white/10 bg-slate-950/65 backdrop-blur-xl shadow-2xl overflow-hidden"
                     >
                         <div class="px-6 py-5 border-b border-white/10 bg-white/5">
@@ -74,7 +72,7 @@ type EmpresaActivo = {
                             </div>
 
                             <h3
-                                class="text-3xl font-bold leading-tight"
+                                class="text-2xl md:text-3xl font-bold leading-tight"
                                 style="color: #ffffff;"
                             >
                                 {{ item.empresa }}
@@ -83,15 +81,22 @@ type EmpresaActivo = {
 
                         <div class="p-6">
                             <div class="text-sm font-semibold mb-4" style="color: #cbd5e1;">
-                                Activos asociados
+                                Activos visibles
                             </div>
 
                             <div class="flex flex-wrap gap-3">
                                 <span
-                                    *ngFor="let activo of item.activos"
+                                    *ngFor="let activo of getActivosPreview(item.activos)"
                                     class="inline-flex items-center px-4 py-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-sm"
                                 >
                                     {{ activo }}
+                                </span>
+
+                                <span
+                                    *ngIf="item.activos.length > maxActivosVisibles"
+                                    class="inline-flex items-center px-4 py-2 rounded-full border border-white/10 bg-white/5 text-slate-200 text-sm"
+                                >
+                                    +{{ item.activos.length - maxActivosVisibles }} más
                                 </span>
                             </div>
                         </div>
@@ -103,4 +108,15 @@ type EmpresaActivo = {
 })
 export class Companieswidget {
     catalogo: EmpresaActivo[] = empresasActivos as EmpresaActivo[];
+
+    maxEmpresasVisibles = 4;
+    maxActivosVisibles = 3;
+
+    get catalogoPreview(): EmpresaActivo[] {
+        return this.catalogo.slice(0, this.maxEmpresasVisibles);
+    }
+
+    getActivosPreview(activos: string[]): string[] {
+        return activos.slice(0, this.maxActivosVisibles);
+    }
 }
