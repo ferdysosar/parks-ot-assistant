@@ -83,7 +83,6 @@ export class ChatWidget {
 
     private resolveQuery(query: string): string {
         const parsed = this.parseQuery(query);
-
         const globalResolution = this.findBestGlobalMatch(query);
 
         if (globalResolution.mode === 'multiple' && globalResolution.matches) {
@@ -103,7 +102,7 @@ export class ChatWidget {
         if (parsed.intent === 'empresa') {
             const rankedCompanies = this.getBestMatches(query, 'empresa');
 
-            if (rankedCompanies.length >= 2 && rankedCompanies[0].score >= 45 && rankedCompanies[1].score >= 45) {
+            if (rankedCompanies.length >= 2 && rankedCompanies[0].score >= 70 && rankedCompanies[1].score >= 70) {
                 return this.formatMultipleMatches(
                     'Detecté múltiples coincidencias de empresas:',
                     rankedCompanies.slice(0, 4).map((item) => ({
@@ -114,7 +113,7 @@ export class ChatWidget {
                 );
             }
 
-            if (rankedCompanies.length > 0 && rankedCompanies[0].score >= 40) {
+            if (rankedCompanies.length > 0 && rankedCompanies[0].score >= 65) {
                 const bestCompany = rankedCompanies[0].value;
                 const results = this.ots.filter((item) => this.normalizeText(item.empresa) === this.normalizeText(bestCompany));
 
@@ -125,7 +124,7 @@ export class ChatWidget {
         if (parsed.intent === 'activo') {
             const rankedAssets = this.getBestMatches(query, 'activo');
 
-            if (rankedAssets.length >= 2 && rankedAssets[0].score >= 45 && rankedAssets[1].score >= 45) {
+            if (rankedAssets.length >= 2 && rankedAssets[0].score >= 70 && rankedAssets[1].score >= 70) {
                 return this.formatMultipleMatches(
                     'Detecté múltiples coincidencias de activos:',
                     rankedAssets.slice(0, 4).map((item) => ({
@@ -136,7 +135,7 @@ export class ChatWidget {
                 );
             }
 
-            if (rankedAssets.length > 0 && rankedAssets[0].score >= 40) {
+            if (rankedAssets.length > 0 && rankedAssets[0].score >= 65) {
                 const bestAsset = rankedAssets[0].value;
                 const results = this.ots.filter((item) => this.normalizeText(item.activo) === this.normalizeText(bestAsset));
 
@@ -287,28 +286,15 @@ export class ChatWidget {
     }
 
     private getBestMatches(query: string, field: 'empresa' | 'activo'): Array<{ value: string; score: number }> {
-        const normalizedQuery = this.normalizeText(query);
-        const segmentedQueries = this.segmentQuery(this.extractRelevantQuery(normalizedQuery, field));
+        const cleanedQuery = this.extractRelevantQuery(this.normalizeText(query), field);
+        const tokens = this.extractMeaningfulTokens(cleanedQuery);
         const values = [...new Set(this.ots.map((item) => item[field]))];
 
         return values
-            .map((value) => {
-                const normalizedValue = this.normalizeText(value);
-
-                let bestScore = 0;
-
-                for (const segment of segmentedQueries) {
-                    const score = this.scoreMatch(segment, normalizedValue);
-                    if (score > bestScore) {
-                        bestScore = score;
-                    }
-                }
-
-                return {
-                    value,
-                    score: bestScore
-                };
-            })
+            .map((value) => ({
+                value,
+                score: this.scoreEntityWithTokens(tokens, this.normalizeText(value))
+            }))
             .filter((item) => item.score > 0)
             .sort((a, b) => b.score - a.score);
     }
@@ -316,7 +302,7 @@ export class ChatWidget {
     private findBestGlobalMatch(query: string): GlobalResolution {
         const normalizedQuery = this.normalizeText(query);
         const cleanedQuery = this.cleanQueryForSearch(normalizedQuery);
-        const segments = this.segmentQuery(cleanedQuery);
+        const tokens = this.extractMeaningfulTokens(cleanedQuery);
 
         const otCandidates: RankedMatch[] = this.ots.map((item) => ({
             type: 'ot',
@@ -327,16 +313,16 @@ export class ChatWidget {
         const companyCandidates: RankedMatch[] = [...new Set(this.ots.map((item) => item.empresa))].map((empresa) => ({
             type: 'empresa',
             value: empresa,
-            score: this.scoreAgainstSegments(segments, this.normalizeText(empresa))
+            score: this.scoreEntityWithTokens(tokens, this.normalizeText(empresa))
         }));
 
         const assetCandidates: RankedMatch[] = [...new Set(this.ots.map((item) => item.activo))].map((activo) => ({
             type: 'activo',
             value: activo,
-            score: this.scoreAgainstSegments(segments, this.normalizeText(activo))
+            score: this.scoreEntityWithTokens(tokens, this.normalizeText(activo))
         }));
 
-        const all = [...otCandidates, ...companyCandidates, ...assetCandidates].filter((item) => item.score > 30).sort((a, b) => b.score - a.score);
+        const all = [...otCandidates, ...companyCandidates, ...assetCandidates].filter((item) => item.score >= 45).sort((a, b) => b.score - a.score);
 
         if (!all.length) {
             return { mode: 'none' };
@@ -347,7 +333,7 @@ export class ChatWidget {
         for (const item of all) {
             const alreadyExists = uniqueStrongMatches.some((existing) => existing.type === item.type && this.normalizeText(existing.value) === this.normalizeText(item.value));
 
-            if (!alreadyExists && item.score >= 45) {
+            if (!alreadyExists && item.score >= 65) {
                 uniqueStrongMatches.push(item);
             }
         }
@@ -361,7 +347,7 @@ export class ChatWidget {
             };
         }
 
-        if (all[0].score < 35) {
+        if (all[0].score < 65) {
             return { mode: 'none' };
         }
 
@@ -378,60 +364,70 @@ export class ChatWidget {
         }
 
         const normalizedQuery = this.cleanQueryForSearch(this.normalizeText(query));
-        const segments = this.segmentQuery(normalizedQuery);
         const normalizedOt = this.normalizeText(otValue);
 
-        return this.scoreAgainstSegments(segments, normalizedOt);
+        if (!normalizedQuery) return 0;
+        return this.scoreSoft(normalizedQuery, normalizedOt);
     }
 
-    private scoreAgainstSegments(segments: string[], target: string): number {
-        if (!segments.length || !target) return 0;
+    private scoreEntityWithTokens(tokens: string[], target: string): number {
+        if (!tokens.length || !target) return 0;
 
-        let bestScore = 0;
+        let score = 0;
+        let matchedTokens = 0;
+        let strongMatches = 0;
 
-        for (const segment of segments) {
-            const score = this.scoreMatch(segment, target);
-            if (score > bestScore) {
-                bestScore = score;
+        for (const token of tokens) {
+            const tokenScore = this.scoreTokenAgainstTarget(token, target);
+
+            if (tokenScore > 0) {
+                matchedTokens++;
+                score += tokenScore;
+
+                // 🔥 contamos matches fuertes (no palabras genéricas)
+                if (token.length >= 4 && tokenScore >= 60) {
+                    strongMatches++;
+                }
             }
         }
 
-        return bestScore;
+        // ❌ si solo matchea 1 palabra débil → descartamos
+        if (matchedTokens === 1 && strongMatches === 0) {
+            return 0;
+        }
+
+        if (matchedTokens === 0) return 0;
+
+        score += matchedTokens * 8;
+
+        if (matchedTokens >= 2) score += 12;
+        if (matchedTokens >= 3) score += 18;
+
+        return score;
     }
 
-    private segmentQuery(query: string): string[] {
-        const cleaned = query.trim();
-        if (!cleaned) return [];
+    private scoreTokenAgainstTarget(token: string, target: string): number {
+        if (!token || !target) return 0;
 
-        const words = cleaned.split(' ').filter(Boolean);
-        const segments = new Set<string>();
+        if (token === target) return 100;
+        if (target.startsWith(token)) return 85;
+        if (target.includes(token)) return 70;
 
-        segments.add(cleaned);
+        const targetWords = target.split(' ').filter(Boolean);
 
-        for (const word of words) {
-            if (word.length >= 3) {
-                segments.add(word);
+        for (const word of targetWords) {
+            if (word === token) return 75;
+            if (word.startsWith(token)) return 60;
+            if (token.length >= 4 && word.includes(token)) return 45;
+            if (token.length >= 4 && word.length >= 4 && this.levenshtein(token, word) === 1) {
+                return 35;
             }
         }
 
-        for (let i = 0; i < words.length - 1; i++) {
-            const pair = `${words[i]} ${words[i + 1]}`.trim();
-            if (pair.length >= 5) {
-                segments.add(pair);
-            }
-        }
-
-        for (let i = 0; i < words.length - 2; i++) {
-            const triple = `${words[i]} ${words[i + 1]} ${words[i + 2]}`.trim();
-            if (triple.length >= 8) {
-                segments.add(triple);
-            }
-        }
-
-        return [...segments];
+        return 0;
     }
 
-    private scoreMatch(query: string, target: string): number {
+    private scoreSoft(query: string, target: string): number {
         if (!query || !target) return 0;
 
         if (query === target) return 100;
@@ -459,6 +455,24 @@ export class ChatWidget {
         }
 
         return score;
+    }
+
+    private extractMeaningfulTokens(query: string): string[] {
+        const words = query.split(' ').filter((word) => word.length >= 3);
+        const tokens = new Set<string>();
+
+        for (const word of words) {
+            tokens.add(word);
+        }
+
+        for (let i = 0; i < words.length - 1; i++) {
+            const pair = `${words[i]} ${words[i + 1]}`.trim();
+            if (pair.length >= 6) {
+                tokens.add(pair);
+            }
+        }
+
+        return [...tokens];
     }
 
     private levenshtein(a: string, b: string): number {
