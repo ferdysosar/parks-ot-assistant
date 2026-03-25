@@ -10,6 +10,11 @@ import {
 } from './chat.types';
 import { parseQuery as parseIntentQuery } from './chat-intent.parser';
 import {
+  findBestGlobalMatch as matcherFindBestGlobalMatch,
+  getBestMatches as matcherGetBestMatches,
+  scoreOtQuery as matcherScoreOtQuery,
+} from './chat-matcher';
+import {
   cleanQueryForSearch as utilCleanQueryForSearch,
   escapeRegex as utilEscapeRegex,
   extractMeaningfulTokens as utilExtractMeaningfulTokens,
@@ -385,98 +390,15 @@ export class ChatService {
     query: string,
     field: 'empresa' | 'activo'
   ): Array<{ value: string; score: number }> {
-    const cleanedQuery = this.extractRelevantQuery(this.normalizeText(query), field);
-    const tokens = this.extractMeaningfulTokens(cleanedQuery);
-    const values = [...new Set(this.ots.map((item) => item[field]))];
-
-    return values
-      .map((value) => ({
-        value,
-        score: this.scoreEntityWithTokens(tokens, this.normalizeText(value)),
-      }))
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score);
+    return matcherGetBestMatches(query, field, this.ots);
   }
 
   private findBestGlobalMatch(query: string): GlobalResolution {
-    const normalizedQuery = this.normalizeText(query);
-    const cleanedQuery = this.cleanQueryForSearch(normalizedQuery);
-    const tokens = this.extractMeaningfulTokens(cleanedQuery);
-
-    const otCandidates: RankedMatch[] = this.ots.map((item) => ({
-      type: 'ot',
-      value: item.ot_numero,
-      score: this.scoreOtQuery(query, item.ot_numero),
-    }));
-
-    const companyCandidates: RankedMatch[] = [...new Set(this.ots.map((item) => item.empresa))].map(
-      (empresa) => ({
-        type: 'empresa',
-        value: empresa,
-        score: this.scoreEntityWithTokens(tokens, this.normalizeText(empresa)),
-      })
-    );
-
-    const assetCandidates: RankedMatch[] = [...new Set(this.ots.map((item) => item.activo))].map(
-      (activo) => ({
-        type: 'activo',
-        value: activo,
-        score: this.scoreEntityWithTokens(tokens, this.normalizeText(activo)),
-      })
-    );
-
-    const all = [...otCandidates, ...companyCandidates, ...assetCandidates]
-      .filter((item) => item.score >= 45)
-      .sort((a, b) => b.score - a.score);
-
-    if (!all.length) return { mode: 'none' };
-
-    const uniqueStrongMatches: RankedMatch[] = [];
-
-    for (const item of all) {
-      const alreadyExists = uniqueStrongMatches.some(
-        (existing) =>
-          existing.type === item.type &&
-          this.normalizeText(existing.value) === this.normalizeText(item.value)
-      );
-
-      if (!alreadyExists && item.score >= 65) {
-        uniqueStrongMatches.push(item);
-      }
-    }
-
-    uniqueStrongMatches.sort((a, b) => b.score - a.score);
-
-    if (uniqueStrongMatches.length >= 2) {
-      return {
-        mode: 'multiple',
-        matches: uniqueStrongMatches.slice(0, 4),
-      };
-    }
-
-    if (all[0].score < 65) return { mode: 'none' };
-
-    return {
-      mode: 'single',
-      match: all[0],
-    };
+    return matcherFindBestGlobalMatch(query, this.ots);
   }
 
   private scoreOtQuery(query: string, otValue: string): number {
-    const otMatch = query.match(/ot[\s-]*(\d{1,})/i);
-    if (otMatch?.[1]) {
-      const extracted = `OT-${otMatch[1].padStart(3, '0')}`;
-
-      if (this.normalizeText(extracted) === this.normalizeText(otValue)) {
-        return 120;
-      }
-    }
-
-    const normalizedQuery = this.cleanQueryForSearch(this.normalizeText(query));
-    const normalizedOt = this.normalizeText(otValue);
-
-    if (!normalizedQuery) return 0;
-    return this.scoreSoft(normalizedQuery, normalizedOt);
+    return matcherScoreOtQuery(query, otValue);
   }
 
   private scoreEntityWithTokens(tokens: string[], target: string): number {
