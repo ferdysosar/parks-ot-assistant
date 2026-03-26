@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { Otswidget } from './otswidget';
+import { OtsWidget } from './otswidget';
 
-describe('Otswidget', () => {
-  let component: Otswidget;
-  let fixture: ComponentFixture<Otswidget>;
+describe('OtsWidget', () => {
+  let component: OtsWidget;
+  let fixture: ComponentFixture<OtsWidget>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [Otswidget]
+      imports: [OtsWidget]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(Otswidget);
+    fixture = TestBed.createComponent(OtsWidget);
     component = fixture.componentInstance;
     await fixture.whenStable();
   });
