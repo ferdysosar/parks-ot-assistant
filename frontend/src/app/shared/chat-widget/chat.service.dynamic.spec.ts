@@ -26,7 +26,7 @@ describe('ChatService dynamic queries', () => {
   it('resuelve mes con conteo', () => {
     const response = service.resolveQuery('cuántas OTs hubo en julio');
     expect(response).toContain('En julio de 2026');
-    expect(response).toContain('hubo 6 OT(s)');
+    expect(response).toContain('hubo 6 OTs');
   });
 
   it('usa default de últimas 5 cuando no se especifica número', () => {

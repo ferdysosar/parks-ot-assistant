@@ -82,6 +82,10 @@ export class ChatService {
       return dynamicFollowUp;
     }
 
+    if (this.isGreetingQuery(normalizedQuery)) {
+      return this.buildGreetingResponse();
+    }
+
     const parsed = this.parseQuery(query);
     const globalResolution = this.findBestGlobalMatch(query);
 
@@ -243,7 +247,11 @@ export class ChatService {
       }
     }
 
-    return 'No encontré resultados con esa consulta. Probá con una OT, una empresa o un activo. Ejemplos: "OT-002", "Aurora", "Río Norte", "Galerna".';
+    if (this.isLooseInputWithoutContext(normalizedQuery)) {
+      return this.buildLooseInputHelp(query);
+    }
+
+    return 'No pude encontrar resultados con ese mensaje. Probá con algo más específico, por ejemplo: "OT-011", "últimas 5 del Aurora I", "qué OTs se hicieron el 26/03/2026" o "qué OTs hubo en marzo 2025".';
   }
 
   private resolveUsingContext(normalizedQuery: string): string {
@@ -410,6 +418,68 @@ export class ChatService {
     return parseIntentQuery(query, this.ots);
   }
 
+  private otCountLabel(count: number): string {
+    return count === 1 ? 'OT' : 'OTs';
+  }
+
+  private isGreetingQuery(normalizedQuery: string): boolean {
+    return this.includesAny(normalizedQuery, [
+      'hola',
+      'buenas',
+      'buen dia',
+      'buen día',
+      'buenas tardes',
+      'buenas noches',
+      'hey',
+      'que tal',
+      'qué tal',
+    ]);
+  }
+
+  private buildGreetingResponse(): string {
+    return [
+      'Hola, soy Parks OT Assistant.',
+      '',
+      'Puedo ayudarte a consultar OTs por número, empresa, activo, fecha o mes.',
+      'Ejemplos:',
+      '• "OT-011"',
+      '• "últimas 5 del Aurora I"',
+      '• "qué OTs se hicieron el 26/03/2026"',
+      '• "qué OTs hubo en marzo 2025"',
+    ].join('\n');
+  }
+
+  private isLooseInputWithoutContext(normalizedQuery: string): boolean {
+    const hasRecentDynamicContext =
+      this.lastDynamicContext !== null && this.turnCounter - this.lastDynamicTurn <= 1;
+    const hasConversationalContext = !!this.lastContext.type && !!this.lastContext.value;
+    if (hasRecentDynamicContext || hasConversationalContext) return false;
+
+    const isOnlyYear = /^\d{4}$/.test(normalizedQuery);
+    const isOneWordEntityLike =
+      /^[a-záéíóúüñ0-9-]{2,}$/.test(normalizedQuery) && !normalizedQuery.includes(' ');
+    const isVeryShortPhrase =
+      normalizedQuery.split(' ').length <= 2 && normalizedQuery.length <= 12;
+
+    return isOnlyYear || isOneWordEntityLike || isVeryShortPhrase;
+  }
+
+  private buildLooseInputHelp(rawQuery: string): string {
+    const q = rawQuery.trim();
+    if (/^\d{4}$/.test(q)) {
+      return `Si querés filtrar por año, podés pedir por mes + año. Ejemplo: "qué OTs hubo en marzo ${q}".`;
+    }
+
+    return [
+      `Entiendo "${q}", pero me falta un poco más de contexto.`,
+      '',
+      'Probá con algo como:',
+      '• "últimas 5 del Aurora I"',
+      '• "qué OTs hubo en marzo 2025"',
+      '• "qué OTs se hicieron el 26/03/2026"',
+    ].join('\n');
+  }
+
   private resolveDynamicFollowUp(query: string, normalizedQuery: string): string | null {
     if (!this.lastDynamicContext) return null;
     if (this.turnCounter - this.lastDynamicTurn !== 1) return null;
@@ -569,8 +639,8 @@ export class ChatService {
     scopeEntity: string | null;
   }): string {
     const { found, requested, latest, scopeEntity } = params;
-    const foundOtWord = found === 1 ? 'OT' : 'OTs';
-    const requestedOtWord = requested === 1 ? 'OT' : 'OTs';
+    const foundOtWord = this.otCountLabel(found);
+    const requestedOtWord = this.otCountLabel(requested);
     const scopeFor = scopeEntity ? ` para ${scopeEntity}` : '';
     const scopeOf = scopeEntity ? ` de ${scopeEntity}` : '';
     const verb = found === 1 ? 'Se encontró' : 'Se encontraron';
@@ -586,7 +656,7 @@ export class ChatService {
       return `Mostrando las últimas ${found} ${foundOtWord}${scopeOf}:`;
     }
 
-    return `Mostrando ${found} orden(es) solicitadas:`;
+    return `Mostrando ${found} ${foundOtWord} solicitadas${scopeOf}:`;
   }
 
   private resolveDynamicQuery(
@@ -674,7 +744,7 @@ export class ChatService {
       }
       rememberDynamic();
       return this.formatOtList(
-        `Encontré ${results.length} orden(es) para la fecha ${displayDate}:`,
+        `Encontré ${results.length} ${this.otCountLabel(results.length)} para la fecha ${displayDate}:`,
         results
       );
     }
@@ -690,7 +760,7 @@ export class ChatService {
 
       if (meta.asksCount) {
         rememberDynamic();
-        return `En ${monthLabel} de ${meta.year}${defaultYearMsg} hubo ${results.length} OT(s).`;
+        return `En ${monthLabel} de ${meta.year}${defaultYearMsg} hubo ${results.length} ${this.otCountLabel(results.length)}.`;
       }
 
       if (!results.length) {
@@ -700,7 +770,7 @@ export class ChatService {
 
       rememberDynamic();
       return this.formatOtList(
-        `Encontré ${results.length} orden(es) en ${monthLabel} de ${meta.year}${defaultYearMsg}:`,
+        `Encontré ${results.length} ${this.otCountLabel(results.length)} en ${monthLabel} de ${meta.year}${defaultYearMsg}:`,
         results
       );
     }
