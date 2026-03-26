@@ -38,4 +38,30 @@ describe('ChatService dynamic queries', () => {
     const response = service.resolveQuery('quiero ver 8 del aurora');
     expect(response).toContain('de las 8 solicitadas para Aurora I');
   });
+
+  it('soporta follow-up de cambio de año', () => {
+    service.resolveQuery('qué OTs hubo en marzo');
+    const response = service.resolveQuery('pero del 2025');
+    expect(response).toContain('marzo de 2025');
+  });
+
+  it('soporta follow-up de cambio de mes', () => {
+    service.resolveQuery('qué OTs hubo en marzo');
+    const response = service.resolveQuery('no, en julio');
+    expect(response).toContain('julio de 2026');
+  });
+
+  it('soporta follow-up de cambio de cantidad', () => {
+    service.resolveQuery('últimas del aurora');
+    const response = service.resolveQuery('quiero 10');
+    expect(response).toContain('10');
+    expect(response).toContain('Aurora I');
+  });
+
+  it('soporta follow-up de agregar entidad', () => {
+    service.resolveQuery('qué OTs hubo en marzo 2025');
+    const response = service.resolveQuery('solo del aurora');
+    expect(response).toContain('marzo de 2025');
+    expect(response).toContain('Aurora I');
+  });
 });

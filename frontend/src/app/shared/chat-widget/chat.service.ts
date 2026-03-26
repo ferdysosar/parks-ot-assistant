@@ -46,6 +46,19 @@ import {
   providedIn: 'root',
 })
 export class ChatService {
+  private turnCounter = 0;
+  private lastDynamicTurn = -1;
+  private lastDynamicContext: {
+    exactDateIso: string | null;
+    month: number | null;
+    year: number | null;
+    asksCount: boolean;
+    latest: boolean;
+    limit: number | null;
+    scopeType: 'empresa' | 'activo' | null;
+    scopeEntity: string | null;
+  } | null = null;
+
   private ots: OtItem[] = (otsData as OtItem[]) ?? [];
   private lastContext: ChatContext = {
     type: null,
@@ -53,6 +66,7 @@ export class ChatService {
   };
 
   resolveQuery(query: string): string {
+    this.turnCounter++;
     const normalizedQuery = this.normalizeText(query);
 
     if (
@@ -61,6 +75,11 @@ export class ChatService {
       this.lastContext.value
     ) {
       return this.resolveUsingContext(normalizedQuery);
+    }
+
+    const dynamicFollowUp = this.resolveDynamicFollowUp(query, normalizedQuery);
+    if (dynamicFollowUp) {
+      return dynamicFollowUp;
     }
 
     const parsed = this.parseQuery(query);
@@ -391,6 +410,158 @@ export class ChatService {
     return parseIntentQuery(query, this.ots);
   }
 
+  private resolveDynamicFollowUp(query: string, normalizedQuery: string): string | null {
+    if (!this.lastDynamicContext) return null;
+    if (this.turnCounter - this.lastDynamicTurn !== 1) return null;
+    if (this.isStandaloneDynamicQuery(normalizedQuery)) return null;
+
+    const patch = this.extractDynamicFollowUpPatch(query, normalizedQuery);
+    if (!patch.hasPatch) return null;
+
+    const next = { ...this.lastDynamicContext };
+
+    if (patch.exactDateIso !== null) {
+      next.exactDateIso = patch.exactDateIso;
+      next.month = null;
+      next.year = null;
+    }
+
+    if (patch.year !== null) next.year = patch.year;
+    if (patch.month !== null) {
+      next.month = patch.month;
+      next.exactDateIso = null;
+      if (patch.year === null && next.year === null) {
+        next.year = patch.defaultYear;
+      }
+    }
+
+    if (patch.limit !== null) next.limit = patch.limit;
+    if (patch.latest !== null) next.latest = patch.latest;
+    if (patch.asksCount !== null) next.asksCount = patch.asksCount;
+    if (patch.scopeEntity && patch.scopeType) {
+      next.scopeEntity = patch.scopeEntity;
+      next.scopeType = patch.scopeType;
+    }
+
+    const synthetic = this.buildSyntheticDynamicQuery(next);
+    if (!synthetic) return null;
+
+    const parsed = this.parseQuery(synthetic);
+    return this.resolveDynamicQuery(synthetic, this.normalizeText(synthetic), parsed);
+  }
+
+  private isStandaloneDynamicQuery(normalizedQuery: string): boolean {
+    return this.includesAny(normalizedQuery, [
+      'que ots',
+      'qué ots',
+      'que trabajos',
+      'qué trabajos',
+      'mostrame',
+      'mostrar',
+      'dame',
+      'consulta',
+      'consultar',
+      'buscar',
+      'busca',
+      'ultimas',
+      'últimas',
+      'quiero ver',
+    ]);
+  }
+
+  private extractDynamicFollowUpPatch(query: string, normalizedQuery: string): {
+    hasPatch: boolean;
+    exactDateIso: string | null;
+    year: number | null;
+    month: number | null;
+    limit: number | null;
+    latest: boolean | null;
+    asksCount: boolean | null;
+    scopeType: 'empresa' | 'activo' | null;
+    scopeEntity: string | null;
+    defaultYear: number | null;
+  } {
+    const meta = parseDynamicQueryMeta(query, this.ots);
+    const yearMatch = normalizedQuery.match(/\b(19\d{2}|20\d{2})\b/);
+    const explicitYear = yearMatch ? Number(yearMatch[1]) : null;
+
+    const rankedCompanies = this.getBestMatches(query, 'empresa');
+    const rankedAssets = this.getBestMatches(query, 'activo');
+    const bestCompany = rankedCompanies.length > 0 ? rankedCompanies[0] : null;
+    const bestAsset = rankedAssets.length > 0 ? rankedAssets[0] : null;
+
+    let scopeType: 'empresa' | 'activo' | null = null;
+    let scopeEntity: string | null = null;
+
+    if (
+      bestCompany &&
+      bestCompany.score >= 65 &&
+      (!bestAsset || bestCompany.score >= bestAsset.score)
+    ) {
+      scopeType = 'empresa';
+      scopeEntity = bestCompany.value;
+    } else if (bestAsset && bestAsset.score >= 65) {
+      scopeType = 'activo';
+      scopeEntity = bestAsset.value;
+    }
+
+    const explicitCount =
+      /\bcuantas?\b|\bcuantos?\b/.test(normalizedQuery) ? true : null;
+    const hasPatch = Boolean(
+      meta.exactDateIso !== null ||
+      explicitYear !== null ||
+      meta.month !== null ||
+      meta.limit !== null ||
+      meta.latest ||
+      explicitCount !== null ||
+      scopeEntity
+    );
+
+    return {
+      hasPatch,
+      exactDateIso: meta.exactDateIso,
+      year: explicitYear,
+      month: meta.month,
+      limit: meta.limit,
+      latest: meta.latest ? true : null,
+      asksCount: explicitCount,
+      scopeType,
+      scopeEntity,
+      defaultYear: meta.defaultYear,
+    };
+  }
+
+  private buildSyntheticDynamicQuery(ctx: {
+    exactDateIso: string | null;
+    month: number | null;
+    year: number | null;
+    asksCount: boolean;
+    latest: boolean;
+    limit: number | null;
+    scopeType: 'empresa' | 'activo' | null;
+    scopeEntity: string | null;
+  }): string | null {
+    if (ctx.exactDateIso) {
+      const display = formatIsoDateToDisplay(ctx.exactDateIso);
+      return `qué OTs se hicieron el ${display}`;
+    }
+
+    if (ctx.month && ctx.year) {
+      const base = ctx.asksCount
+        ? `cuántas OTs hubo en ${monthName(ctx.month)} ${ctx.year}`
+        : `qué OTs hubo en ${monthName(ctx.month)} ${ctx.year}`;
+      return ctx.scopeEntity ? `${base} de ${ctx.scopeEntity}` : base;
+    }
+
+    if (ctx.latest || ctx.limit) {
+      const qty = ctx.limit ?? 5;
+      const base = ctx.latest ? `últimas ${qty}` : `quiero ver ${qty}`;
+      return ctx.scopeEntity ? `${base} de ${ctx.scopeEntity}` : base;
+    }
+
+    return null;
+  }
+
   private buildDynamicLimitedTitle(params: {
     found: number;
     requested: number;
@@ -476,14 +647,32 @@ export class ChatService {
       );
     }
 
+    const baseDynamicContext = {
+      exactDateIso: meta.exactDateIso,
+      month: meta.month,
+      year: meta.year,
+      asksCount: meta.asksCount,
+      latest: meta.latest,
+      limit: meta.limit,
+      scopeType,
+      scopeEntity,
+    };
+
+    const rememberDynamic = (ctx = baseDynamicContext): void => {
+      this.lastDynamicContext = ctx;
+      this.lastDynamicTurn = this.turnCounter;
+    };
+
     let results = scoped;
 
     if (meta.exactDateIso) {
       results = filterByExactDate(results, meta.exactDateIso);
       const displayDate = formatIsoDateToDisplay(meta.exactDateIso);
       if (!results.length) {
+        rememberDynamic();
         return `No encontré OTs para la fecha ${displayDate}.`;
       }
+      rememberDynamic();
       return this.formatOtList(
         `Encontré ${results.length} orden(es) para la fecha ${displayDate}:`,
         results
@@ -500,13 +689,16 @@ export class ChatService {
         : '';
 
       if (meta.asksCount) {
+        rememberDynamic();
         return `En ${monthLabel} de ${meta.year}${defaultYearMsg} hubo ${results.length} OT(s).`;
       }
 
       if (!results.length) {
+        rememberDynamic();
         return `No encontré OTs en ${monthLabel} de ${meta.year}${defaultYearMsg}.`;
       }
 
+      rememberDynamic();
       return this.formatOtList(
         `Encontré ${results.length} orden(es) en ${monthLabel} de ${meta.year}${defaultYearMsg}:`,
         results
@@ -525,6 +717,11 @@ export class ChatService {
         latest: true,
         scopeEntity,
       });
+      rememberDynamic({
+        ...baseDynamicContext,
+        latest: true,
+        limit: defaultLatest,
+      });
       return this.formatOtList(title, latestResults);
     }
 
@@ -542,6 +739,7 @@ export class ChatService {
         latest: meta.latest,
         scopeEntity,
       });
+      rememberDynamic();
       return this.formatOtList(title, limited);
     }
 
