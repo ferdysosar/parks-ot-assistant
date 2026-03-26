@@ -528,7 +528,7 @@ export class ChatService {
       return this.formatOtList(title, latestResults);
     }
 
-    if (meta.latest) {
+    if (meta.latest || meta.limit) {
       results = sortByFechaDesc(results);
     }
 
