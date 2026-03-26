@@ -10,6 +10,14 @@ import {
 } from './chat.types';
 import { parseQuery as parseIntentQuery } from './chat-intent.parser';
 import {
+  filterByExactDate,
+  filterByMonthYear,
+  formatIsoDateToDisplay,
+  monthName,
+  parseDynamicQueryMeta,
+  sortByFechaDesc,
+} from './chat-dynamic-query';
+import {
   findBestGlobalMatch as matcherFindBestGlobalMatch,
   getBestMatches as matcherGetBestMatches,
   scoreOtQuery as matcherScoreOtQuery,
@@ -57,6 +65,11 @@ export class ChatService {
 
     const parsed = this.parseQuery(query);
     const globalResolution = this.findBestGlobalMatch(query);
+
+    const dynamicResponse = this.resolveDynamicQuery(query, normalizedQuery, parsed);
+    if (dynamicResponse) {
+      return dynamicResponse;
+    }
 
     if (globalResolution.mode === 'multiple' && globalResolution.matches) {
       this.clearContext();
@@ -376,6 +389,164 @@ export class ChatService {
     originalEntity: string;
   } {
     return parseIntentQuery(query, this.ots);
+  }
+
+  private buildDynamicLimitedTitle(params: {
+    found: number;
+    requested: number;
+    latest: boolean;
+    scopeEntity: string | null;
+  }): string {
+    const { found, requested, latest, scopeEntity } = params;
+    const foundOtWord = found === 1 ? 'OT' : 'OTs';
+    const requestedOtWord = requested === 1 ? 'OT' : 'OTs';
+    const scopeFor = scopeEntity ? ` para ${scopeEntity}` : '';
+    const scopeOf = scopeEntity ? ` de ${scopeEntity}` : '';
+    const verb = found === 1 ? 'Se encontró' : 'Se encontraron';
+
+    if (found < requested) {
+      if (latest) {
+        return `${verb} ${found} de las últimas ${requested} ${requestedOtWord} disponibles${scopeFor}.`;
+      }
+      return `${verb} ${found} de las ${requested} solicitadas${scopeFor}.`;
+    }
+
+    if (latest) {
+      return `Mostrando las últimas ${found} ${foundOtWord}${scopeOf}:`;
+    }
+
+    return `Mostrando ${found} orden(es) solicitadas:`;
+  }
+
+  private resolveDynamicQuery(
+    query: string,
+    normalizedQuery: string,
+    parsed: { intent: QueryIntent; value: string | null; originalEntity: string }
+  ): string | null {
+    const meta = parseDynamicQueryMeta(query, this.ots);
+    if (!meta.hasDynamicRequest) return null;
+
+    let scoped: OtItem[] = this.ots;
+    let scopeEntity: string | null = null;
+    let scopeType: 'empresa' | 'activo' | null = null;
+
+    const rankedCompanies = this.getBestMatches(query, 'empresa');
+    const rankedAssets = this.getBestMatches(query, 'activo');
+    const bestCompany = rankedCompanies.length > 0 ? rankedCompanies[0] : null;
+    const bestAsset = rankedAssets.length > 0 ? rankedAssets[0] : null;
+    const companyStrong = !!bestCompany && bestCompany.score >= 65;
+    const assetStrong = !!bestAsset && bestAsset.score >= 65;
+
+    if (parsed.intent === 'empresa') {
+      if (companyStrong) {
+        scopeEntity = bestCompany!.value;
+        scopeType = 'empresa';
+      }
+    } else if (parsed.intent === 'activo') {
+      if (assetStrong) {
+        scopeEntity = bestAsset!.value;
+        scopeType = 'activo';
+      }
+    } else {
+      // Fallback para consultas dinámicas sin intent explícito.
+      if (companyStrong && assetStrong) {
+        if (bestCompany!.score > bestAsset!.score) {
+          scopeEntity = bestCompany!.value;
+          scopeType = 'empresa';
+        } else if (bestAsset!.score > bestCompany!.score) {
+          scopeEntity = bestAsset!.value;
+          scopeType = 'activo';
+        }
+      } else if (companyStrong) {
+        scopeEntity = bestCompany!.value;
+        scopeType = 'empresa';
+      } else if (assetStrong) {
+        scopeEntity = bestAsset!.value;
+        scopeType = 'activo';
+      }
+    }
+
+    if (scopeEntity && scopeType === 'empresa') {
+      scoped = this.ots.filter(
+        (it) => this.normalizeText(it.empresa) === this.normalizeText(scopeEntity as string)
+      );
+    } else if (scopeEntity && scopeType === 'activo') {
+      scoped = this.ots.filter(
+        (it) => this.normalizeText(it.activo) === this.normalizeText(scopeEntity as string)
+      );
+    }
+
+    let results = scoped;
+
+    if (meta.exactDateIso) {
+      results = filterByExactDate(results, meta.exactDateIso);
+      const displayDate = formatIsoDateToDisplay(meta.exactDateIso);
+      if (!results.length) {
+        return `No encontré OTs para la fecha ${displayDate}.`;
+      }
+      return this.formatOtList(
+        `Encontré ${results.length} orden(es) para la fecha ${displayDate}:`,
+        results
+      );
+    }
+
+    if (meta.month && meta.year) {
+      results = filterByMonthYear(results, meta.month, meta.year);
+      results = sortByFechaDesc(results);
+
+      const monthLabel = monthName(meta.month);
+      const defaultYearMsg = meta.usedDefaultYear
+        ? ` (tomé por defecto el año ${meta.year})`
+        : '';
+
+      if (meta.asksCount) {
+        return `En ${monthLabel} de ${meta.year}${defaultYearMsg} hubo ${results.length} OT(s).`;
+      }
+
+      if (!results.length) {
+        return `No encontré OTs en ${monthLabel} de ${meta.year}${defaultYearMsg}.`;
+      }
+
+      return this.formatOtList(
+        `Encontré ${results.length} orden(es) en ${monthLabel} de ${meta.year}${defaultYearMsg}:`,
+        results
+      );
+    }
+
+    // "últimas" sin número => default 5
+    if (meta.latest && !meta.limit) {
+      const defaultLatest = 5;
+      const latestResults = sortByFechaDesc(results).slice(0, defaultLatest);
+      if (!latestResults.length) return 'No encontré resultados para esa consulta.';
+
+      const title = this.buildDynamicLimitedTitle({
+        found: latestResults.length,
+        requested: defaultLatest,
+        latest: true,
+        scopeEntity,
+      });
+      return this.formatOtList(title, latestResults);
+    }
+
+    if (meta.latest) {
+      results = sortByFechaDesc(results);
+    }
+
+    if (meta.limit) {
+      const limited = results.slice(0, meta.limit);
+      if (!limited.length) return 'No encontré resultados para esa consulta.';
+
+      const title = this.buildDynamicLimitedTitle({
+        found: limited.length,
+        requested: meta.limit,
+        latest: meta.latest,
+        scopeEntity,
+      });
+      return this.formatOtList(title, limited);
+    }
+
+    // asksCount sin mes/fecha/número no altera comportamiento actual
+    return null;
   }
 
   private findOtByNumber(otNumber: string): OtItem | undefined {
