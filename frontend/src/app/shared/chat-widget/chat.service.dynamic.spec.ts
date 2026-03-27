@@ -64,4 +64,19 @@ describe('ChatService dynamic queries', () => {
     expect(response).toContain('marzo de 2025');
     expect(response).toContain('Aurora I');
   });
+  it('resuelve consulta parcial por año con preposición', () => {
+    const response = service.resolveQuery('del 2025');
+    expect(response).toContain('en 2025');
+  });
+
+  it('resuelve mes como input suelto', () => {
+    const response = service.resolveQuery('marzo');
+    expect(response).toContain('marzo de 2026');
+  });
+
+  it('resuelve activo parcial con "solo"', () => {
+    const response = service.resolveQuery('solo aurora');
+    expect(response).toContain('Aurora I');
+  });
 });
+

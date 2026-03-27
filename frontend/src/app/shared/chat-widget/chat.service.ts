@@ -12,6 +12,7 @@ import { parseQuery as parseIntentQuery } from './chat-intent.parser';
 import {
   filterByExactDate,
   filterByMonthYear,
+  filterByYear,
   formatIsoDateToDisplay,
   monthName,
   parseDynamicQueryMeta,
@@ -622,7 +623,12 @@ export class ChatService {
         : `qué OTs hubo en ${monthName(ctx.month)} ${ctx.year}`;
       return ctx.scopeEntity ? `${base} de ${ctx.scopeEntity}` : base;
     }
-
+    if (ctx.year) {
+      const base = ctx.asksCount
+        ? `cuántas OTs hubo en ${ctx.year}`
+        : `qué OTs hubo en ${ctx.year}`;
+      return ctx.scopeEntity ? `${base} de ${ctx.scopeEntity}` : base;
+    }
     if (ctx.latest || ctx.limit) {
       const qty = ctx.limit ?? 5;
       const base = ctx.latest ? `últimas ${qty}` : `quiero ver ${qty}`;
@@ -775,6 +781,28 @@ export class ChatService {
       );
     }
 
+    // Consulta por año (ej: "del 2025")
+    if (meta.yearOnly && meta.year) {
+      results = filterByYear(results, meta.year);
+      results = sortByFechaDesc(results);
+
+      if (meta.asksCount) {
+        rememberDynamic();
+        return `En ${meta.year} hubo ${results.length} ${this.otCountLabel(results.length)}.`;
+      }
+
+      if (!results.length) {
+        rememberDynamic();
+        return `No encontré OTs en ${meta.year}.`;
+      }
+
+      rememberDynamic();
+      return this.formatOtList(
+        `Encontré ${results.length} ${this.otCountLabel(results.length)} en ${meta.year}:`,
+        results
+      );
+    }
+
     // "últimas" sin número => default 5
     if (meta.latest && !meta.limit) {
       const defaultLatest = 5;
@@ -900,3 +928,4 @@ export class ChatService {
     return utilEscapeRegex(value);
   }
 }
+

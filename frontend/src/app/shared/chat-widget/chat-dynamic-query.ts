@@ -7,6 +7,7 @@ export type DynamicQueryMeta = {
   exactDateIso: string | null;
   month: number | null;
   year: number | null;
+  yearOnly: boolean;
   asksCount: boolean;
   usedDefaultYear: boolean;
   defaultYear: number | null;
@@ -37,13 +38,15 @@ export function parseDynamicQueryMeta(query: string, ots: OtItem[]): DynamicQuer
   const normalized = normalizeText(query);
   const exactDateIso = extractExactDateIso(query);
   const monthInfo = extractMonthYear(normalized);
+  const explicitYear = extractYear(normalized);
   const asksCount = /\bcuantas?\b|\bcuantos?\b/.test(normalized);
   const latest = /\bultim[ao]s?\b|\brecientes?\b/.test(normalized);
   const limit = extractDynamicLimit(query, normalized, exactDateIso);
   const defaultYear = getDefaultYear(ots);
+  const yearOnly = !monthInfo && explicitYear !== null && hasYearScopeCue(normalized, explicitYear);
 
   let month = monthInfo?.month ?? null;
-  let year = monthInfo?.year ?? null;
+  let year = monthInfo?.year ?? (yearOnly ? explicitYear : null);
   let usedDefaultYear = false;
 
   if (month && !year && defaultYear) {
@@ -51,7 +54,9 @@ export function parseDynamicQueryMeta(query: string, ots: OtItem[]): DynamicQuer
     usedDefaultYear = true;
   }
 
-  const hasDynamicRequest = Boolean(limit || exactDateIso || month || latest || asksCount);
+  const hasDynamicRequest = Boolean(
+    limit || exactDateIso || month || yearOnly || latest || asksCount
+  );
 
   return {
     limit,
@@ -59,6 +64,7 @@ export function parseDynamicQueryMeta(query: string, ots: OtItem[]): DynamicQuer
     exactDateIso,
     month,
     year,
+    yearOnly,
     asksCount,
     usedDefaultYear,
     defaultYear,
@@ -75,6 +81,10 @@ export function filterByMonthYear(items: OtItem[], month: number, year: number):
     const [y, m] = item.fecha.split('-').map(Number);
     return y === year && m === month;
   });
+}
+
+export function filterByYear(items: OtItem[], year: number): OtItem[] {
+  return items.filter((item) => Number(item.fecha.split('-')[0]) === year);
 }
 
 export function sortByFechaDesc(items: OtItem[]): OtItem[] {
@@ -105,9 +115,17 @@ function extractMonthYear(normalized: string): { month: number; year: number | n
   const monthToken = Object.keys(MONTHS).find((name) => normalized.includes(name));
   if (!monthToken) return null;
   const month = MONTHS[monthToken];
-  const yearMatch = normalized.match(/\b(20\d{2}|19\d{2})\b/);
-  const year = yearMatch ? Number(yearMatch[1]) : null;
+  const year = extractYear(normalized);
   return { month, year };
+}
+
+function extractYear(normalized: string): number | null {
+  const yearMatch = normalized.match(/\b(20\d{2}|19\d{2})\b/);
+  return yearMatch ? Number(yearMatch[1]) : null;
+}
+
+function hasYearScopeCue(normalized: string, year: number): boolean {
+  return new RegExp(`\\b(de|del|en|ano|año)\\s+${year}\\b`).test(normalized);
 }
 
 function extractDynamicLimit(

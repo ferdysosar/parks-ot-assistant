@@ -1,6 +1,7 @@
 import {
   filterByExactDate,
   filterByMonthYear,
+  filterByYear,
   formatIsoDateToDisplay,
   monthName,
   parseDynamicQueryMeta,
@@ -69,6 +70,19 @@ describe('chat-dynamic-query', () => {
 
   it('filtra por fecha exacta ISO', () => {
     const result = filterByExactDate(ots, '2025-03-26');
+    expect(result.length).toBe(1);
+    expect(result[0].ot_numero).toBe('OT-002');
+  });
+
+  it('detecta consulta por aÃ±o parcial con preposiciÃ³n', () => {
+    const meta = parseDynamicQueryMeta('del 2025', ots);
+    expect(meta.yearOnly).toBeTrue();
+    expect(meta.year).toBe(2025);
+    expect(meta.hasDynamicRequest).toBeTrue();
+  });
+
+  it('filtra correctamente por aÃ±o', () => {
+    const result = filterByYear(ots, 2025);
     expect(result.length).toBe(1);
     expect(result[0].ot_numero).toBe('OT-002');
   });

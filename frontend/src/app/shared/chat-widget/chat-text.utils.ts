@@ -34,6 +34,7 @@ export function extractRelevantQuery(query: string, field: 'empresa' | 'activo')
     'quiero ver', 'decime', 'dame', 'consultar', 'consulta', 'que', 'qué',
     'cuales', 'cuáles', 'trabajos', 'trabajo', 'orden', 'ordenes', 'órdenes',
     'de', 'del', 'la', 'las', 'el', 'los', 'en', 'se', 'hicieron', 'hizo',
+    'solo', 'solamente',
   ];
 
   const stopWordsEmpresa =
@@ -50,6 +51,7 @@ export function cleanQueryForSearch(query: string): string {
     'quiero ver', 'decime', 'dame', 'consultar', 'consulta', 'que', 'qué',
     'cuales', 'cuáles', 'trabajos', 'trabajo', 'orden', 'ordenes', 'órdenes',
     'de', 'del', 'la', 'las', 'el', 'los', 'en', 'se', 'hicieron', 'hizo',
+    'solo', 'solamente',
     'empresa', 'empresas', 'cliente', 'clientes', 'naviera', 'compania', 'compañia',
     'activo', 'activos', 'barco', 'barcos', 'buque', 'buques', 'embarcacion', 'embarcaciones',
   ]);
