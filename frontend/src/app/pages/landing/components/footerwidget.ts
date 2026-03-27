@@ -4,12 +4,12 @@ import { Component } from '@angular/core';
     selector: 'footer-widget',
     standalone: true,
     template: `
-        <div class="text-center py-10 text-gray-600">
-            <div class="text-xl font-semibold mb-2">Parks OT Assistant</div>
+        <footer class="text-center py-10 text-gray-600" role="contentinfo">
+            <p class="text-xl font-semibold mb-2">Parks OT Assistant</p>
             <p>
                 Proyecto académico orientado a la optimización de consultas de órdenes de trabajo.
             </p>
-        </div>
+        </footer>
     `
 })
 export class FooterWidget {}

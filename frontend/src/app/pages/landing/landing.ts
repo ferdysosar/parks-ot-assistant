@@ -21,9 +21,21 @@ import { ChatWidget } from '../../shared/chat-widget/chat-widget';
     ],
     template: `
         <topbar-widget />
-        <hero-widget />
-        <features-widget />
-        <ots-widget />
+
+        <main id="contenido-principal" role="main">
+            <section aria-label="Presentación principal">
+                <hero-widget />
+            </section>
+
+            <section aria-label="Funciones del asistente">
+                <features-widget />
+            </section>
+
+            <section aria-label="Consulta de órdenes de trabajo">
+                <ots-widget />
+            </section>
+        </main>
+
         <footer-widget />
         <app-chat-widget></app-chat-widget>
     `
