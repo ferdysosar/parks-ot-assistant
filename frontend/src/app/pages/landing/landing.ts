@@ -3,9 +3,7 @@ import { Component } from '@angular/core';
 import { TopbarWidget } from './components/topbarwidget.component';
 import { HeroWidget } from './components/herowidget';
 import { FeaturesWidget } from './components/featureswidget';
-import { DemoWidget } from './components/demowidget/demowidget';
 import { OtsWidget } from './components/otswidget/otswidget';
-import { Companieswidget } from './components/companieswidget/companieswidget';
 import { FooterWidget } from './components/footerwidget';
 import { ChatWidget } from '../../shared/chat-widget/chat-widget';
 
@@ -17,9 +15,7 @@ import { ChatWidget } from '../../shared/chat-widget/chat-widget';
         TopbarWidget,
         HeroWidget,
         FeaturesWidget,
-        DemoWidget,
         OtsWidget,
-        Companieswidget,
         FooterWidget,
         ChatWidget
     ],
@@ -27,9 +23,7 @@ import { ChatWidget } from '../../shared/chat-widget/chat-widget';
         <topbar-widget />
         <hero-widget />
         <features-widget />
-        <demo-widget />
         <ots-widget />
-        <companies-widget />
         <footer-widget />
         <app-chat-widget></app-chat-widget>
     `

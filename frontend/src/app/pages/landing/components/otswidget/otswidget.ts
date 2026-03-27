@@ -67,15 +67,48 @@ type EmpresaActivo = {
                         class="text-4xl md:text-5xl font-extrabold tracking-tight"
                         style="color: #ffffff;"
                     >
-                        Órdenes de trabajo demo
+                        Ver OTs
                     </h2>
 
                     <div class="mt-5 w-24 h-1 mx-auto rounded-full bg-gradient-to-r from-cyan-400 to-sky-500"></div>
 
                     <p class="mt-6 text-lg leading-relaxed" style="color: #e2e8f0;">
-                        Explorá registros de ejemplo utilizando filtros por empresa y activo,
-                        simulando la lógica de consulta que tendrá el asistente.
+                        Consultá y navegá órdenes demo con filtros por empresa y activo,
+                        en una vista única enfocada en operación.
                     </p>
+                </div>
+
+                <div class="mt-12 max-w-6xl mx-auto">
+                    <div class="rounded-[2rem] border border-white/10 bg-slate-950/65 backdrop-blur-xl p-6 lg:p-7 shadow-2xl">
+                        <div class="text-xs uppercase tracking-[0.2em] text-cyan-300 mb-4">
+                            Estructura de empresas y activos
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <article
+                                *ngFor="let item of catalogoPreview"
+                                class="rounded-2xl border border-white/10 bg-white/5 p-4"
+                            >
+                                <h3 class="text-lg font-semibold text-white">{{ item.empresa }}</h3>
+
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <span
+                                        *ngFor="let activo of getActivosPreview(item.activos)"
+                                        class="inline-flex items-center px-3 py-1.5 rounded-full border border-cyan-400/20 bg-cyan-400/10 text-cyan-200 text-xs"
+                                    >
+                                        {{ activo }}
+                                    </span>
+
+                                    <span
+                                        *ngIf="item.activos.length > maxActivosVisibles"
+                                        class="inline-flex items-center px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-slate-200 text-xs"
+                                    >
+                                        +{{ item.activos.length - maxActivosVisibles }} más
+                                    </span>
+                                </div>
+                            </article>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="mt-14 max-w-5xl mx-auto">
@@ -260,6 +293,8 @@ type EmpresaActivo = {
 export class OtsWidget implements OnInit, OnDestroy {
     ots: OTDemo[] = otsData as OTDemo[];
     catalogo: EmpresaActivo[] = empresasActivos as EmpresaActivo[];
+    maxEmpresasVisibles = 6;
+    maxActivosVisibles = 4;
 
     empresaSeleccionada = '';
     activoSeleccionado = '';
@@ -296,6 +331,14 @@ export class OtsWidget implements OnInit, OnDestroy {
             const coincideActivo = !this.activoSeleccionado || ot.activo === this.activoSeleccionado;
             return coincideEmpresa && coincideActivo;
         });
+    }
+
+    get catalogoPreview(): EmpresaActivo[] {
+        return this.catalogo.slice(0, this.maxEmpresasVisibles);
+    }
+
+    getActivosPreview(activos: string[]): string[] {
+        return activos.slice(0, this.maxActivosVisibles);
     }
 
     onEmpresaChange(): void {

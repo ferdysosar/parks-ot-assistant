@@ -38,8 +38,8 @@ import { Component, HostListener } from '@angular/core';
               <div class="text-white font-semibold text-xl tracking-tight group-hover:text-cyan-300 transition">
                 Parks OT Assistant
               </div>
-              <div class="text-[11px] uppercase tracking-[0.28em] text-slate-400">
-                Consulta operativa naval
+              <div class="text-[11px] uppercase tracking-[0.28em] text-slate-300">
+                Parks Ingeniería · Operación naval
               </div>
             </div>
           </a>
@@ -61,15 +61,8 @@ import { Component, HostListener } from '@angular/core';
             </a>
 
             <a
-              href="#demo"
-              class="px-4 py-2 rounded-xl text-sm text-slate-200 hover:text-white hover:bg-white/5 transition"
-            >
-              Demo
-            </a>
-
-            <a
               href="#ots"
-              class="ml-2 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm transition shadow-lg shadow-cyan-500/20"
+              class="ml-2 inline-flex items-center justify-center px-4 py-2 rounded-xl border border-cyan-300/35 bg-cyan-400/15 hover:bg-cyan-400/25 text-cyan-100 font-semibold text-sm transition shadow-md shadow-cyan-500/15"
             >
               Ver OTs
             </a>
