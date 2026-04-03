@@ -78,5 +78,17 @@ describe('ChatService dynamic queries', () => {
     const response = service.resolveQuery('solo aurora');
     expect(response).toContain('Aurora I');
   });
+
+  it('responde guia FAQ para consulta por numero de OT', () => {
+    const response = service.resolveQuery('como consulto una OT por numero');
+    expect(response).toContain('consultar una OT por número');
+    expect(response).toContain('OT-001');
+  });
+
+  it('mantiene flujo operativo para consulta directa de OT', () => {
+    const response = service.resolveQuery('OT-001');
+    expect(response).toContain('OT-001');
+    expect(response).not.toContain('Para consultar una OT por número');
+  });
 });
 

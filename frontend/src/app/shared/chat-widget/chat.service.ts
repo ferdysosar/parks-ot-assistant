@@ -87,6 +87,11 @@ export class ChatService {
       return this.buildGreetingResponse();
     }
 
+    const faqGuidance = this.resolveFaqGuidance(normalizedQuery);
+    if (faqGuidance) {
+      return faqGuidance;
+    }
+
     const parsed = this.parseQuery(query);
     const globalResolution = this.findBestGlobalMatch(query);
 
@@ -448,6 +453,121 @@ export class ChatService {
       '• "qué OTs se hicieron el 26/03/2026"',
       '• "qué OTs hubo en marzo 2025"',
     ].join('\n');
+  }
+
+  private resolveFaqGuidance(normalizedQuery: string): string | null {
+    if (!this.isFaqHelpQuery(normalizedQuery)) return null;
+
+    if (this.isFaqOtNumberQuery(normalizedQuery)) {
+      return [
+        'Para consultar una OT por número, escribí el identificador directamente.',
+        'Ejemplo: "OT-001".',
+      ].join('\n');
+    }
+
+    if (this.matchesFaqTopic(normalizedQuery, ['empresa'])) {
+      return [
+        'Podés buscar OTs por empresa indicando "empresa" y el nombre a consultar.',
+        'Ejemplo: "qué OTs tiene la empresa Naviera del Sur".',
+      ].join('\n');
+    }
+
+    if (this.matchesFaqTopic(normalizedQuery, ['activo', 'barco', 'buque', 'embarcacion'])) {
+      return [
+        'Podés buscar OTs por activo mencionando el activo en la consulta.',
+        'Ejemplo: "qué OTs tiene el activo Remolcador Alfa".',
+      ].join('\n');
+    }
+
+    if (this.matchesFaqTopic(normalizedQuery, ['fecha', 'dia', 'dia especifico', 'fecha especifica'])) {
+      return [
+        'Para consultar por fecha exacta, usá formato día/mes/año.',
+        'Ejemplo: "qué OTs se hicieron el 26/03/2026".',
+      ].join('\n');
+    }
+
+    if (this.matchesFaqTopic(normalizedQuery, ['mes', 'ano', 'año', 'periodo', 'periodo mensual', 'periodo anual'])) {
+      return [
+        'Podés filtrar por mes o por año para ver órdenes de un período.',
+        'Ejemplo: "qué OTs hubo en marzo 2025".',
+      ].join('\n');
+    }
+
+    if (this.matchesFaqTopic(normalizedQuery, ['ultimas', 'ultimos', 'recientes', 'mas recientes'])) {
+      return [
+        'Para ver órdenes recientes, pedí "últimas" y opcionalmente una cantidad.',
+        'Ejemplo: "últimas 5 órdenes".',
+      ].join('\n');
+    }
+
+    if (this.matchesFaqTopic(normalizedQuery, ['cuantas', 'cuantos', 'conteo', 'contar', 'cantidad'])) {
+      return [
+        'Podés pedir conteo de OTs por período usando una consulta de cantidad.',
+        'Ejemplo: "cuántas OTs hubo en 2025".',
+      ].join('\n');
+    }
+
+    if (this.matchesFaqTopic(normalizedQuery, ['no reconoce', 'no encuentra', 'sin resultados', 'no hay resultados', 'error'])) {
+      return [
+        'Si no se reconoce la consulta, probá con una frase más específica y con un solo criterio.',
+        'Ejemplos: "OT-001", "qué OTs hubo en marzo 2025", "últimas 5 órdenes".',
+      ].join('\n');
+    }
+
+    return [
+      'Puedo ayudarte con consultas por OT, empresa, activo, fecha, mes, año, últimas órdenes y conteos por período.',
+      'Ejemplos: "OT-001", "qué OTs hubo en marzo 2025", "últimas 5 órdenes".',
+    ].join('\n');
+  }
+
+  private isFaqHelpQuery(normalizedQuery: string): boolean {
+    return this.includesAny(normalizedQuery, [
+      'como',
+      'como consulto',
+      'como busco',
+      'como veo',
+      'como cuento',
+      'como hago',
+      'que puedo consultar',
+      'ayuda',
+      'faq',
+      'preguntas frecuentes',
+      'que hago si',
+      'no reconoce',
+      'no encuentra',
+      'sin resultados',
+      'no hay resultados',
+    ]);
+  }
+
+  private matchesFaqTopic(normalizedQuery: string, terms: string[]): boolean {
+    return terms.some((term) => normalizedQuery.includes(this.normalizeText(term)));
+  }
+
+  private isFaqOtNumberQuery(normalizedQuery: string): boolean {
+    if (
+      this.includesAny(normalizedQuery, [
+        'ot por numero',
+        'numero de ot',
+        'numero de la ot',
+        'consultar una ot por numero',
+        'buscar una ot por numero',
+      ])
+    ) {
+      return true;
+    }
+
+    const hasOt =
+      /\bot\b/.test(normalizedQuery) ||
+      this.includesAny(normalizedQuery, ['orden de trabajo', 'ordenes de trabajo']);
+    const hasNumber = this.includesAny(normalizedQuery, [
+      'numero',
+      'nro',
+      'identificador',
+      'codigo',
+    ]);
+
+    return hasOt && hasNumber;
   }
 
   private isLooseInputWithoutContext(normalizedQuery: string): boolean {
