@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import {
   AfterViewChecked,
   Component,
@@ -19,16 +19,12 @@ import { ChatMessage } from './chat.types';
 export class ChatWidget implements AfterViewChecked {
   @ViewChild('chatContainer') private chatContainer?: ElementRef<HTMLDivElement>;
 
+  private readonly initialAssistantMessage =
+    'Hola, soy Parks OT Assistant. Podés consultar por número de OT, empresa o activo. Ejemplos: "OT-001", "Aurora I", "órdenes de Río Norte".';
+
   isOpen = false;
   userInput = '';
-
-  messages: ChatMessage[] = [
-    {
-      role: 'assistant',
-      text:
-        'Hola, soy Parks OT Assistant. Podés consultar por número de OT, empresa o activo. Ejemplos: "OT-001", "Aurora I", "órdenes de Río Norte".',
-    },
-  ];
+  messages: ChatMessage[] = this.buildInitialMessages();
 
   private shouldScrollToBottom = false;
 
@@ -70,6 +66,22 @@ export class ChatWidget implements AfterViewChecked {
     });
 
     this.requestScrollToBottom();
+  }
+
+  resetConversation(): void {
+    this.chatService.resetConversationContext();
+    this.userInput = '';
+    this.messages = this.buildInitialMessages();
+    this.requestScrollToBottom();
+  }
+
+  private buildInitialMessages(): ChatMessage[] {
+    return [
+      {
+        role: 'assistant',
+        text: this.initialAssistantMessage,
+      },
+    ];
   }
 
   private requestScrollToBottom(): void {

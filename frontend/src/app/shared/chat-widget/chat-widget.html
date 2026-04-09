@@ -1,4 +1,4 @@
-<button class="chat-fab" type="button" (click)="toggleChat()">
+﻿<button class="chat-fab" type="button" (click)="toggleChat()">
   💬
 </button>
 
@@ -9,9 +9,15 @@
       <p>Consulta OTs por número, empresa o activo</p>
     </div>
 
-    <button class="chat-close" type="button" (click)="toggleChat()">
-      ✕
-    </button>
+    <div class="chat-header-actions">
+      <button class="chat-reset" type="button" (click)="resetConversation()">
+        Reiniciar
+      </button>
+
+      <button class="chat-close" type="button" (click)="toggleChat()">
+        ✕
+      </button>
+    </div>
   </div>
 
   <div class="chat-body" #chatContainer>

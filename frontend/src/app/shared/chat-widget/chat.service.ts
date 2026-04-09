@@ -48,6 +48,7 @@ import {
 })
 export class ChatService {
   private turnCounter = 0;
+  private lastIntent: QueryIntent | null = null;
   private lastDynamicTurn = -1;
   private lastDynamicContext: {
     exactDateIso: string | null;
@@ -93,6 +94,7 @@ export class ChatService {
     }
 
     const parsed = this.parseQuery(query);
+    this.lastIntent = parsed.intent;
     const globalResolution = this.findBestGlobalMatch(query);
 
     const dynamicResponse = this.resolveDynamicQuery(query, normalizedQuery, parsed);
@@ -414,6 +416,14 @@ export class ChatService {
 
   private clearContext(): void {
     this.lastContext = { type: null, value: null };
+  }
+
+  resetConversationContext(): void {
+    this.turnCounter = 0;
+    this.lastIntent = null;
+    this.lastDynamicTurn = -1;
+    this.lastDynamicContext = null;
+    this.clearContext();
   }
 
   private parseQuery(query: string): {
