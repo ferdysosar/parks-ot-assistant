@@ -49,6 +49,11 @@ import {
 export class ChatService {
   private turnCounter = 0;
   private lastIntent: QueryIntent | null = null;
+  private historyContext: {
+    scopeEntity: string;
+    sortOrder: 'asc' | 'desc';
+    year: number | null;
+  } | null = null;
   private lastDynamicTurn = -1;
   private lastDynamicContext: {
     exactDateIso: string | null;
@@ -70,6 +75,11 @@ export class ChatService {
   resolveQuery(query: string): string {
     this.turnCounter++;
     const normalizedQuery = this.normalizeText(query);
+
+    const historyFollowUp = this.resolveHistoryFollowUp(query, normalizedQuery);
+    if (historyFollowUp) {
+      return historyFollowUp;
+    }
 
     if (
       this.isContextualFollowUp(normalizedQuery) &&
@@ -93,23 +103,13 @@ export class ChatService {
       return faqGuidance;
     }
 
+    const historyResponse = this.resolveHistoryRequest(query, normalizedQuery);
+    if (historyResponse) {
+      return historyResponse;
+    }
+
     const parsed = this.parseQuery(query);
     this.lastIntent = parsed.intent;
-    const globalResolution = this.findBestGlobalMatch(query);
-
-    const dynamicResponse = this.resolveDynamicQuery(query, normalizedQuery, parsed);
-    if (dynamicResponse) {
-      return dynamicResponse;
-    }
-
-    if (globalResolution.mode === 'multiple' && globalResolution.matches) {
-      this.clearContext();
-
-      return this.formatMultipleMatches(
-        'Detecté múltiples coincidencias:',
-        globalResolution.matches
-      );
-    }
 
     if (parsed.intent === 'ot' && parsed.value) {
       const ot = this.findOtByNumber(parsed.value);
@@ -120,6 +120,21 @@ export class ChatService {
 
       this.setContext('ot', ot.ot_numero);
       return this.formatSingleOt(ot);
+    }
+
+    const dynamicResponse = this.resolveDynamicQuery(query, normalizedQuery, parsed);
+    if (dynamicResponse) {
+      return dynamicResponse;
+    }
+
+    const globalResolution = this.findBestGlobalMatch(query);
+    if (globalResolution.mode === 'multiple' && globalResolution.matches) {
+      this.clearContext();
+
+      return this.formatMultipleMatches(
+        'Detecté múltiples coincidencias:',
+        globalResolution.matches
+      );
     }
 
     if (parsed.intent === 'empresa') {
@@ -421,9 +436,161 @@ export class ChatService {
   resetConversationContext(): void {
     this.turnCounter = 0;
     this.lastIntent = null;
+    this.historyContext = null;
     this.lastDynamicTurn = -1;
     this.lastDynamicContext = null;
     this.clearContext();
+  }
+
+  private resolveHistoryRequest(query: string, normalizedQuery: string): string | null {
+    if (!this.isHistoryRequest(normalizedQuery)) return null;
+
+    let scopeEntity: string | null = null;
+    const rankedAssets = this.getBestMatches(query, 'activo');
+    if (rankedAssets.length > 0 && rankedAssets[0].score >= 65) {
+      scopeEntity = rankedAssets[0].value;
+    }
+
+    if (
+      !scopeEntity &&
+      this.lastContext.type === 'activo' &&
+      this.lastContext.value &&
+      this.includesAny(normalizedQuery, ['este barco', 'este activo', 'ese barco', 'ese activo'])
+    ) {
+      scopeEntity = this.lastContext.value;
+    }
+
+    if (!scopeEntity) {
+      return 'Para armar el historial necesito que indiques el activo/barco. Ejemplo: "historial de Aurora I".';
+    }
+
+    const year = this.extractYearFromNormalizedQuery(normalizedQuery);
+    const sortOrder = this.extractHistorySortOrder(normalizedQuery) ?? 'desc';
+    const wantsLatest = this.includesAny(normalizedQuery, ['ultima', 'última']);
+
+    this.historyContext = { scopeEntity, sortOrder, year };
+    this.setContext('activo', scopeEntity);
+    return this.buildHistoryResponse({
+      scopeEntity,
+      sortOrder,
+      year,
+      latestOnly: wantsLatest,
+    });
+  }
+
+  private resolveHistoryFollowUp(query: string, normalizedQuery: string): string | null {
+    if (!this.historyContext) return null;
+    if (!this.isHistoryFollowUp(normalizedQuery)) return null;
+
+    const next = { ...this.historyContext };
+    const detectedSort = this.extractHistorySortOrder(normalizedQuery);
+    if (detectedSort) next.sortOrder = detectedSort;
+
+    const followUpYear = this.extractYearFromNormalizedQuery(normalizedQuery);
+    if (followUpYear !== null && this.includesAny(normalizedQuery, ['solo', 'del', 'de'])) {
+      next.year = followUpYear;
+    }
+
+    const wantsLatest = this.includesAny(normalizedQuery, ['ultima', 'última']);
+    this.historyContext = next;
+    this.setContext('activo', next.scopeEntity);
+
+    return this.buildHistoryResponse({
+      scopeEntity: next.scopeEntity,
+      sortOrder: next.sortOrder,
+      year: next.year,
+      latestOnly: wantsLatest,
+    });
+  }
+
+  private isHistoryRequest(normalizedQuery: string): boolean {
+    return this.includesAny(normalizedQuery, [
+      'historial de',
+      'historial del',
+      'mostrame todo lo que se hizo en',
+      'muestrame todo lo que se hizo en',
+      'todo lo que se hizo en',
+    ]);
+  }
+
+  private isHistoryFollowUp(normalizedQuery: string): boolean {
+    if (this.extractHistorySortOrder(normalizedQuery)) return true;
+    if (this.includesAny(normalizedQuery, ['y la ultima', 'y la última', 'la ultima', 'la última'])) return true;
+
+    const hasYear = this.extractYearFromNormalizedQuery(normalizedQuery) !== null;
+    const hasYearCue = this.includesAny(normalizedQuery, ['solo', 'del', 'de']);
+    return hasYear && hasYearCue;
+  }
+
+  private extractHistorySortOrder(normalizedQuery: string): 'asc' | 'desc' | null {
+    if (
+      this.includesAny(normalizedQuery, [
+        'de mas viejo a mas nuevo',
+        'de más viejo a más nuevo',
+        'mas viejo a mas nuevo',
+        'más viejo a más nuevo',
+        'ascendente',
+      ])
+    ) {
+      return 'asc';
+    }
+
+    if (
+      this.includesAny(normalizedQuery, [
+        'de mas nuevo a mas viejo',
+        'de más nuevo a más viejo',
+        'mas nuevo a mas viejo',
+        'más nuevo a más viejo',
+        'descendente',
+      ])
+    ) {
+      return 'desc';
+    }
+
+    return null;
+  }
+
+  private extractYearFromNormalizedQuery(normalizedQuery: string): number | null {
+    const yearMatch = normalizedQuery.match(/\b(19\d{2}|20\d{2})\b/);
+    return yearMatch ? Number(yearMatch[1]) : null;
+  }
+
+  private buildHistoryResponse(params: {
+    scopeEntity: string;
+    sortOrder: 'asc' | 'desc';
+    year: number | null;
+    latestOnly: boolean;
+  }): string {
+    const { scopeEntity, sortOrder, year, latestOnly } = params;
+    let results = this.ots.filter(
+      (item) => this.normalizeText(item.activo) === this.normalizeText(scopeEntity)
+    );
+
+    if (year !== null) {
+      results = filterByYear(results, year);
+    }
+
+    results = sortOrder === 'asc' ? this.sortByFechaAsc(results) : sortByFechaDesc(results);
+
+    if (!results.length) {
+      if (year !== null) {
+        return `No encontré OTs para el activo "${scopeEntity}" en ${year}.`;
+      }
+      return `No encontré OTs para el activo "${scopeEntity}".`;
+    }
+
+    if (latestOnly) {
+      return this.formatSingleOt(results[0]);
+    }
+
+    const orderLabel = sortOrder === 'asc' ? 'de más viejo a más nuevo' : 'de más nuevo a más viejo';
+    const yearLabel = year !== null ? ` en ${year}` : '';
+    const title = `Historial de "${scopeEntity}"${yearLabel} (${orderLabel}):`;
+    return this.formatOtList(title, results);
+  }
+
+  private sortByFechaAsc(items: OtItem[]): OtItem[] {
+    return [...items].sort((a, b) => a.fecha.localeCompare(b.fecha));
   }
 
   private parseQuery(query: string): {

@@ -90,5 +90,35 @@ describe('ChatService dynamic queries', () => {
     expect(response).toContain('OT-001');
     expect(response).not.toContain('Para consultar una OT por número');
   });
+
+  it('resuelve historial por activo en orden cronologico por defecto', () => {
+    const response = service.resolveQuery('historial de aurora i');
+    expect(response).toContain('Historial de "Aurora I"');
+    expect(response).toContain('de más nuevo a más viejo');
+    expect(response).toContain('OT-013');
+  });
+
+  it('permite cambiar orden a mas viejo primero en follow-up', () => {
+    service.resolveQuery('historial de aurora i');
+    const response = service.resolveQuery('de más viejo a más nuevo');
+    expect(response).toContain('de más viejo a más nuevo');
+    expect(response).toContain('OT-019');
+    expect(response.indexOf('OT-019')).toBeLessThan(response.indexOf('OT-014'));
+  });
+
+  it('permite filtrar historial por ano usando contexto', () => {
+    service.resolveQuery('historial de aurora i');
+    const response = service.resolveQuery('solo 2025');
+    expect(response).toContain('Aurora I');
+    expect(response).toContain('en 2025');
+    expect(response).toContain('OT-014');
+    expect(response).toContain('OT-020');
+  });
+
+  it('responde la ultima OT usando contexto de historial', () => {
+    service.resolveQuery('historial de centinela');
+    const response = service.resolveQuery('y la última');
+    expect(response).toContain('OT-016');
+  });
 });
 
