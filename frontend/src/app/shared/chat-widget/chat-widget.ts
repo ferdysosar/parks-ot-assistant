@@ -20,7 +20,7 @@ export class ChatWidget implements AfterViewChecked {
   @ViewChild('chatContainer') private chatContainer?: ElementRef<HTMLDivElement>;
 
   private readonly initialAssistantMessage =
-    'Hola, soy Parks OT Assistant. Podés consultar por número de OT, empresa o activo. Ejemplos: "OT-001", "Aurora I", "órdenes de Río Norte".';
+    'Hola, soy Parks OT Assistant. Puedo ayudarte con consultas operativas de OTs por número, activo, empresa y período. Ejemplos: "OT-001", "últimas 5 del Aurora I", "historial de Aurora I".';
 
   isOpen = false;
   userInput = '';
