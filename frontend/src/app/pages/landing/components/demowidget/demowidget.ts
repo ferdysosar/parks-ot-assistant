@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, Inject, Optional } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import otsData from '../../../../../assets/ots-demo.json';
+import { OtDto } from '@/app/core/data/ot-contracts';
+import { LocalJsonOtDataSource } from '@/app/core/data/local-json-ot-data-source';
+import { OT_DATA_SOURCE, OtDataSource } from '@/app/core/data/ot-data-source';
 
 type OTDemo = {
     ot_numero: string;
@@ -262,13 +264,20 @@ type OTDemo = {
     `
 })
 export class DemoWidget {
-    ots: OTDemo[] = otsData as OTDemo[];
+    ots: OTDemo[] = [];
 
     consulta = '';
     consultaMostrada = '';
     respuesta =
         'Podés consultar por número de OT, por nombre de empresa o por nombre de activo.';
     resultados: OTDemo[] = [];
+
+    constructor(
+        @Optional() @Inject(OT_DATA_SOURCE) dataSource: OtDataSource | null = null
+    ) {
+        const resolvedDataSource = dataSource ?? new LocalJsonOtDataSource();
+        this.ots = resolvedDataSource.getChatSnapshot().ots.map((item) => this.mapOtDtoToDemo(item));
+    }
 
     usarEjemplo(valor: string): void {
         this.consulta = valor;
@@ -330,5 +339,21 @@ export class DemoWidget {
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .trim();
+    }
+
+    private mapOtDtoToDemo(item: OtDto): OTDemo {
+        return {
+            ot_numero: item.otNumber,
+            empresa: item.companyName,
+            activo: item.assetName,
+            fecha: item.workDate,
+            tipo: item.workType,
+            motivo: item.reason,
+            trabajo_realizado: item.workPerformed,
+            materiales: item.materials,
+            responsable: item.responsible,
+            ubicacion: item.location,
+            observaciones: item.observations ?? undefined
+        };
     }
 }

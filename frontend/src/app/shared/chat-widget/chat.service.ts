@@ -1,5 +1,7 @@
-﻿import { Injectable } from '@angular/core';
-import otsData from '../../../assets/ots-demo.json';
+import { Inject, Injectable, Optional } from '@angular/core';
+import { OtDto } from '@/app/core/data/ot-contracts';
+import { LocalJsonOtDataSource } from '@/app/core/data/local-json-ot-data-source';
+import { OT_DATA_SOURCE, OtDataSource } from '@/app/core/data/ot-data-source';
 import {
   ConversationState,
   GlobalResolution,
@@ -48,8 +50,17 @@ import {
 })
 export class ChatService {
   private turnCounter = 0;
-  private ots: OtItem[] = (otsData as OtItem[]) ?? [];
+  private readonly dataSource: OtDataSource;
+  private ots: OtItem[] = [];
   private session: ConversationState = this.createEmptySession();
+
+  constructor(
+    @Optional() @Inject(OT_DATA_SOURCE) dataSource: OtDataSource | null = null
+  ) {
+    this.dataSource = dataSource ?? new LocalJsonOtDataSource();
+    const snapshot = this.dataSource.getChatSnapshot();
+    this.ots = snapshot.ots.map((item) => this.mapDtoToOtItem(item));
+  }
 
   resolveQuery(query: string): string {
     this.turnCounter++;
@@ -1448,7 +1459,24 @@ export class ChatService {
   private escapeRegex(value: string): string {
     return utilEscapeRegex(value);
   }
+
+  private mapDtoToOtItem(item: OtDto): OtItem {
+    return {
+      ot_numero: item.otNumber,
+      empresa: item.companyName,
+      activo: item.assetName,
+      fecha: item.workDate,
+      tipo: item.workType,
+      motivo: item.reason,
+      trabajo_realizado: item.workPerformed,
+      materiales: item.materials,
+      responsable: item.responsible,
+      ubicacion: item.location,
+      observaciones: item.observations ?? '',
+    };
+  }
 }
+
 
 
 

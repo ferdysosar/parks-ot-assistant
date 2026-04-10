@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit, Optional } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import otsData from '../../../../../assets/ots-demo.json';
-import empresasActivos from '../../../../../data/empresas-activos.json';
+import { AssetDto, CompanyDto, OtDto } from '@/app/core/data/ot-contracts';
+import { LocalJsonOtDataSource } from '@/app/core/data/local-json-ot-data-source';
+import { OT_DATA_SOURCE, OtDataSource } from '@/app/core/data/ot-data-source';
 
 type OTDemo = {
     ot_numero: string;
@@ -291,8 +292,8 @@ type EmpresaActivo = {
     `
 })
 export class OtsWidget implements OnInit, OnDestroy {
-    ots: OTDemo[] = otsData as OTDemo[];
-    catalogo: EmpresaActivo[] = empresasActivos as EmpresaActivo[];
+    ots: OTDemo[] = [];
+    catalogo: EmpresaActivo[] = [];
     maxEmpresasVisibles = 6;
     maxActivosVisibles = 4;
 
@@ -310,7 +311,14 @@ export class OtsWidget implements OnInit, OnDestroy {
     private intervaloId: ReturnType<typeof setInterval> | null = null;
     private timeoutSalidaId: ReturnType<typeof setTimeout> | null = null;
 
-    constructor() {
+    constructor(
+        @Optional() @Inject(OT_DATA_SOURCE) dataSource: OtDataSource | null = null
+    ) {
+        const resolvedDataSource = dataSource ?? new LocalJsonOtDataSource();
+        const snapshot = resolvedDataSource.getChatSnapshot();
+
+        this.ots = snapshot.ots.map((item) => this.mapOtDtoToDemo(item));
+        this.catalogo = this.buildCompanyAssets(snapshot.companies, snapshot.assets);
         this.empresasUnicas = this.catalogo.map((item) => item.empresa);
         this.actualizarActivosDisponibles();
     }
@@ -438,5 +446,30 @@ export class OtsWidget implements OnInit, OnDestroy {
             callback();
             this.animState = 'visible';
         }, 260);
+    }
+
+    private mapOtDtoToDemo(item: OtDto): OTDemo {
+        return {
+            ot_numero: item.otNumber,
+            empresa: item.companyName,
+            activo: item.assetName,
+            fecha: item.workDate,
+            tipo: item.workType,
+            motivo: item.reason,
+            trabajo_realizado: item.workPerformed,
+            materiales: item.materials,
+            responsable: item.responsible,
+            ubicacion: item.location,
+            observaciones: item.observations ?? undefined
+        };
+    }
+
+    private buildCompanyAssets(companies: CompanyDto[], assets: AssetDto[]): EmpresaActivo[] {
+        return companies.map((company) => ({
+            empresa: company.name,
+            activos: assets
+                .filter((asset) => asset.companyId === company.id)
+                .map((asset) => asset.name)
+        }));
     }
 }

@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
-import empresasActivos from '../../../../../data/empresas-activos.json';
+import { Component, Inject, Optional } from '@angular/core';
+import { AssetDto, CompanyDto } from '@/app/core/data/ot-contracts';
+import { LocalJsonOtDataSource } from '@/app/core/data/local-json-ot-data-source';
+import { OT_DATA_SOURCE, OtDataSource } from '@/app/core/data/ot-data-source';
 
 type EmpresaActivo = {
     empresa: string;
@@ -107,10 +109,18 @@ type EmpresaActivo = {
     `
 })
 export class Companieswidget {
-    catalogo: EmpresaActivo[] = empresasActivos as EmpresaActivo[];
+    catalogo: EmpresaActivo[] = [];
 
     maxEmpresasVisibles = 4;
     maxActivosVisibles = 3;
+
+    constructor(
+        @Optional() @Inject(OT_DATA_SOURCE) dataSource: OtDataSource | null = null
+    ) {
+        const resolvedDataSource = dataSource ?? new LocalJsonOtDataSource();
+        const snapshot = resolvedDataSource.getChatSnapshot();
+        this.catalogo = this.buildCompanyAssets(snapshot.companies, snapshot.assets);
+    }
 
     get catalogoPreview(): EmpresaActivo[] {
         return this.catalogo.slice(0, this.maxEmpresasVisibles);
@@ -118,5 +128,14 @@ export class Companieswidget {
 
     getActivosPreview(activos: string[]): string[] {
         return activos.slice(0, this.maxActivosVisibles);
+    }
+
+    private buildCompanyAssets(companies: CompanyDto[], assets: AssetDto[]): EmpresaActivo[] {
+        return companies.map((company) => ({
+            empresa: company.name,
+            activos: assets
+                .filter((asset) => asset.companyId === company.id)
+                .map((asset) => asset.name)
+        }));
     }
 }
