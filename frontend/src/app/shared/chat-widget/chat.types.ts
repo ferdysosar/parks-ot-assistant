@@ -32,7 +32,19 @@ export interface GlobalResolution {
     matches?: RankedMatch[];
 }
 
-export interface ChatContext {
-    type: GlobalMatchType | null;
-    value: string | null;
+export type ConversationMode = 'idle' | 'single' | 'list' | 'history' | 'dynamic';
+export type ConversationEntityType = GlobalMatchType | 'periodo' | null;
+
+export interface ConversationState {
+    mode: ConversationMode;
+    entityType: ConversationEntityType;
+    entityValue: string | null;
+    activeOtNumber: string | null;
+    activeList: OtItem[];
+    sortOrder: 'asc' | 'desc';
+    year: number | null;
+    month: number | null;
+    exactDateIso: string | null;
+    latest: boolean;
+    limit: number | null;
 }

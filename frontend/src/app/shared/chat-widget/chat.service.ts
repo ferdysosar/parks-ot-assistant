@@ -1,8 +1,7 @@
-import { Injectable } from '@angular/core';
+﻿import { Injectable } from '@angular/core';
 import otsData from '../../../assets/ots-demo.json';
 import {
-  ChatContext,
-  GlobalMatchType,
+  ConversationState,
   GlobalResolution,
   OtItem,
   QueryIntent,
@@ -38,6 +37,7 @@ import {
 } from './chat-text.utils';
 import {
   formatDetailedOtList as utilFormatDetailedOtList,
+  formatHistoryOtList as utilFormatHistoryOtList,
   formatMultipleMatches as utilFormatMultipleMatches,
   formatOtList as utilFormatOtList,
   formatSingleOt as utilFormatSingleOt,
@@ -48,51 +48,42 @@ import {
 })
 export class ChatService {
   private turnCounter = 0;
-  private lastIntent: QueryIntent | null = null;
-  private historyContext: {
-    scopeEntity: string;
-    sortOrder: 'asc' | 'desc';
-    year: number | null;
-  } | null = null;
-  private lastDynamicTurn = -1;
-  private lastDynamicContext: {
-    exactDateIso: string | null;
-    month: number | null;
-    year: number | null;
-    asksCount: boolean;
-    latest: boolean;
-    limit: number | null;
-    scopeType: 'empresa' | 'activo' | null;
-    scopeEntity: string | null;
-  } | null = null;
-
   private ots: OtItem[] = (otsData as OtItem[]) ?? [];
-  private lastContext: ChatContext = {
-    type: null,
-    value: null,
-  };
+  private session: ConversationState = this.createEmptySession();
 
   resolveQuery(query: string): string {
     this.turnCounter++;
     const normalizedQuery = this.normalizeText(query);
 
-    const historyFollowUp = this.resolveHistoryFollowUp(query, normalizedQuery);
-    if (historyFollowUp) {
-      return historyFollowUp;
+    const parsed = this.parseQuery(query);
+
+    // 1) Consulta explícita por OT: siempre gana sobre el contexto.
+    if (parsed.intent === 'ot' && parsed.value) {
+      const ot = this.findOtByNumber(parsed.value);
+
+      if (!ot) {
+        return `No encontré la ${parsed.value}. Probá con otro número de OT.`;
+      }
+
+      this.rememberOt(ot);
+      return this.formatSingleOt(ot);
     }
 
-    if (
-      this.isContextualFollowUp(normalizedQuery) &&
-      this.lastContext.type &&
-      this.lastContext.value
-    ) {
-      return this.resolveUsingContext(normalizedQuery);
+    // 2) Consulta explícita de historial: siempre gana sobre el contexto.
+    if (this.isHistoryRequest(normalizedQuery)) {
+      const historyResponse = this.resolveHistoryRequest(query, normalizedQuery);
+      if (historyResponse) return historyResponse;
     }
 
-    const dynamicFollowUp = this.resolveDynamicFollowUp(query, normalizedQuery);
-    if (dynamicFollowUp) {
-      return dynamicFollowUp;
+    // 3) Consulta explícita nueva de lista/dinámica.
+    if (this.isStandaloneDynamicQuery(normalizedQuery)) {
+      const dynamicResponse = this.resolveDynamicQuery(query, normalizedQuery, parsed);
+      if (dynamicResponse) return dynamicResponse;
     }
+
+    // 4) Follow-ups contextuales.
+    const sessionFollowUp = this.resolveSessionFollowUp(query, normalizedQuery, parsed);
+    if (sessionFollowUp) return sessionFollowUp;
 
     if (this.isGreetingQuery(normalizedQuery)) {
       return this.buildGreetingResponse();
@@ -108,20 +99,6 @@ export class ChatService {
       return historyResponse;
     }
 
-    const parsed = this.parseQuery(query);
-    this.lastIntent = parsed.intent;
-
-    if (parsed.intent === 'ot' && parsed.value) {
-      const ot = this.findOtByNumber(parsed.value);
-
-      if (!ot) {
-        return `No encontré la ${parsed.value}. Probá con otro número de OT.`;
-      }
-
-      this.setContext('ot', ot.ot_numero);
-      return this.formatSingleOt(ot);
-    }
-
     const dynamicResponse = this.resolveDynamicQuery(query, normalizedQuery, parsed);
     if (dynamicResponse) {
       return dynamicResponse;
@@ -129,7 +106,7 @@ export class ChatService {
 
     const globalResolution = this.findBestGlobalMatch(query);
     if (globalResolution.mode === 'multiple' && globalResolution.matches) {
-      this.clearContext();
+      this.session = this.createEmptySession();
 
       return this.formatMultipleMatches(
         'Detecté múltiples coincidencias:',
@@ -145,7 +122,7 @@ export class ChatService {
         rankedCompanies[0].score >= 70 &&
         rankedCompanies[1].score >= 70
       ) {
-        this.clearContext();
+        this.session = this.createEmptySession();
 
         return this.formatMultipleMatches(
           'Detecté múltiples coincidencias de empresas:',
@@ -164,9 +141,16 @@ export class ChatService {
             this.normalizeText(item.empresa) === this.normalizeText(bestCompany)
         );
 
-        this.setContext('empresa', bestCompany);
+        this.rememberList({
+          mode: 'list',
+          items: sortByFechaDesc(results),
+          entityType: 'empresa',
+          entityValue: bestCompany,
+          sortOrder: 'desc',
+        });
 
         if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+          this.rememberOt(results[0]);
           return this.formatSingleOt(results[0]);
         }
 
@@ -185,7 +169,7 @@ export class ChatService {
         rankedAssets[0].score >= 70 &&
         rankedAssets[1].score >= 70
       ) {
-        this.clearContext();
+        this.session = this.createEmptySession();
 
         return this.formatMultipleMatches(
           'Detecté múltiples coincidencias de activos:',
@@ -204,9 +188,16 @@ export class ChatService {
             this.normalizeText(item.activo) === this.normalizeText(bestAsset)
         );
 
-        this.setContext('activo', bestAsset);
+        this.rememberList({
+          mode: 'list',
+          items: sortByFechaDesc(results),
+          entityType: 'activo',
+          entityValue: bestAsset,
+          sortOrder: 'desc',
+        });
 
         if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+          this.rememberOt(results[0]);
           return this.formatSingleOt(results[0]);
         }
 
@@ -227,7 +218,7 @@ export class ChatService {
           return 'Encontré una coincidencia probable, pero no pude resolverla correctamente.';
         }
 
-        this.setContext('ot', ot.ot_numero);
+        this.rememberOt(ot);
         return this.formatSingleOt(ot);
       }
 
@@ -238,9 +229,16 @@ export class ChatService {
             this.normalizeText(globalResult.value)
         );
 
-        this.setContext('empresa', globalResult.value);
+        this.rememberList({
+          mode: 'list',
+          items: sortByFechaDesc(results),
+          entityType: 'empresa',
+          entityValue: globalResult.value,
+          sortOrder: 'desc',
+        });
 
         if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+          this.rememberOt(results[0]);
           return this.formatSingleOt(results[0]);
         }
 
@@ -257,9 +255,16 @@ export class ChatService {
             this.normalizeText(globalResult.value)
         );
 
-        this.setContext('activo', globalResult.value);
+        this.rememberList({
+          mode: 'list',
+          items: sortByFechaDesc(results),
+          entityType: 'activo',
+          entityValue: globalResult.value,
+          sortOrder: 'desc',
+        });
 
         if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
+          this.rememberOt(results[0]);
           return this.formatSingleOt(results[0]);
         }
 
@@ -277,113 +282,161 @@ export class ChatService {
     return 'No pude encontrar resultados con ese mensaje. Probá con algo más específico, por ejemplo: "OT-011", "últimas 5 del Aurora I", "qué OTs se hicieron el 26/03/2026" o "qué OTs hubo en marzo 2025".';
   }
 
-  private resolveUsingContext(normalizedQuery: string): string {
-    if (!this.lastContext.type || !this.lastContext.value) {
-      return 'No tengo contexto previo suficiente. Probá nombrando una OT, empresa o activo.';
-    }
+  private createEmptySession(): ConversationState {
+    return {
+      mode: 'idle',
+      entityType: null,
+      entityValue: null,
+      activeOtNumber: null,
+      activeList: [],
+      sortOrder: 'desc',
+      year: null,
+      month: null,
+      exactDateIso: null,
+      latest: false,
+      limit: null,
+    };
+  }
 
-    if (this.lastContext.type === 'ot') {
-      const ot = this.findOtByNumber(this.lastContext.value);
+  private resolveSessionFollowUp(
+    query: string,
+    normalizedQuery: string,
+    parsed: { intent: QueryIntent; value: string | null; originalEntity: string }
+  ): string | null {
+    if (this.session.mode === 'idle') return null;
 
-      if (!ot) {
-        this.clearContext();
-        return 'Perdí el contexto de la OT anterior. Probá consultándola de nuevo.';
+    if (this.isLatestItemFollowUp(normalizedQuery)) {
+      if (!this.session.activeList.length) {
+        return 'Para responder "la última" primero necesito una lista activa. Ejemplo: "últimas 5 del Aurora I".';
       }
 
+      const latest = sortByFechaDesc(this.session.activeList)[0];
+      if (!latest) {
+        return 'No tengo una lista activa válida para resolver "la última".';
+      }
+
+      this.rememberOt(latest);
+      return this.formatSingleOt(latest);
+    }
+
+    if (this.session.mode === 'dynamic' && !this.isStandaloneDynamicQuery(normalizedQuery)) {
+      const dynamicFollowUp = this.resolveDynamicFollowUp(query, normalizedQuery);
+      if (dynamicFollowUp) return dynamicFollowUp;
+    }
+
+    const hasExplicitNewScope = this.hasExplicitNewScope(query, normalizedQuery, parsed);
+    if (hasExplicitNewScope) return null;
+
+    if (!this.isFollowUpCandidate(normalizedQuery)) return null;
+
+    const requestedField = this.detectOtFieldRequest(normalizedQuery);
+    if (requestedField && this.session.activeOtNumber) {
+      const ot = this.findOtByNumber(this.session.activeOtNumber);
+      if (!ot) {
+        this.session = this.createEmptySession();
+        return 'No tengo disponible la OT activa del contexto anterior.';
+      }
+      this.rememberOt(ot);
+      return this.formatOtFieldResponse(ot, requestedField);
+    }
+
+    if (this.isOtDetailFollowUp(normalizedQuery) && this.session.activeOtNumber) {
+      const ot = this.findOtByNumber(this.session.activeOtNumber);
+      if (!ot) {
+        this.session = this.createEmptySession();
+        return 'No tengo disponible la OT activa del contexto anterior.';
+      }
+      this.rememberOt(ot);
       return this.formatSingleOt(ot);
     }
 
-    if (this.lastContext.type === 'activo') {
-      const results = this.ots.filter(
-        (item) =>
-          this.normalizeText(item.activo) ===
-          this.normalizeText(this.lastContext.value as string)
-      );
+    if (this.session.mode === 'history' && this.isHistoryFollowUp(normalizedQuery)) {
+      const nextSort = this.extractHistorySortOrder(normalizedQuery) ?? this.session.sortOrder;
+      const nextYear =
+        this.extractYearFromNormalizedQuery(normalizedQuery) !== null &&
+        this.includesAny(normalizedQuery, ['solo', 'del', 'de'])
+          ? this.extractYearFromNormalizedQuery(normalizedQuery)
+          : this.session.year;
+      const wantsLatest = this.includesAny(normalizedQuery, ['ultima', 'última']);
 
-      if (!results.length) {
-        this.clearContext();
-        return 'Perdí el contexto del activo anterior. Probá nombrándolo otra vez.';
-      }
-
-      if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
-        return this.formatSingleOt(results[0]);
-      }
-
-      if (this.isWorkRequest(normalizedQuery)) {
-        return this.formatDetailedOtList(
-          `Estos son los trabajos asociados al activo "${this.lastContext.value}":`,
-          results
-        );
-      }
-
-      return this.formatOtList(
-        `Sigo con el activo "${this.lastContext.value}". Encontré ${results.length} orden(es):`,
-        results
-      );
+      return this.buildHistoryResponse({
+        scopeEntity: this.session.entityValue as string,
+        sortOrder: nextSort,
+        year: nextYear,
+        latestOnly: wantsLatest,
+      });
     }
 
-    if (this.lastContext.type === 'empresa') {
-      const results = this.ots.filter(
-        (item) =>
-          this.normalizeText(item.empresa) ===
-          this.normalizeText(this.lastContext.value as string)
-      );
-
-      if (!results.length) {
-        this.clearContext();
-        return 'Perdí el contexto de la empresa anterior. Probá nombrándola otra vez.';
+    if (this.isWorkRequest(normalizedQuery) || this.isDetailRequest(normalizedQuery)) {
+      if (!this.session.activeList.length) {
+        if (this.session.activeOtNumber) {
+          const activeOt = this.findOtByNumber(this.session.activeOtNumber);
+          if (activeOt) return this.formatSingleOt(activeOt);
+        }
+        return 'Necesito una OT o una lista activa para ampliar el detalle.';
       }
 
-      if (this.isDetailRequest(normalizedQuery) && results.length === 1) {
-        return this.formatSingleOt(results[0]);
-      }
+      const title = this.session.entityType === 'empresa'
+        ? `Detalle de trabajos para la empresa "${this.session.entityValue}":`
+        : this.session.mode === 'history'
+            ? `Detalle de trabajos del historial de "${this.session.entityValue}":`
+            : this.session.entityType === 'activo'
+              ? `Detalle de trabajos para el activo "${this.session.entityValue}":`
+            : 'Detalle de trabajos de la lista actual:';
 
-      if (this.isWorkRequest(normalizedQuery)) {
-        return this.formatDetailedOtList(
-          `Estos son los trabajos asociados a la empresa "${this.lastContext.value}":`,
-          results
-        );
-      }
-
-      return this.formatOtList(
-        `Sigo con la empresa "${this.lastContext.value}". Encontré ${results.length} orden(es):`,
-        results
-      );
+      return this.formatDetailedOtList(title, this.session.activeList);
     }
 
-    return 'No tengo contexto previo suficiente. Probá de nuevo.';
+    return null;
   }
 
-  private isContextualFollowUp(normalizedQuery: string): boolean {
-    if (!this.lastContext.type || !this.lastContext.value) return false;
+  private isFollowUpCandidate(normalizedQuery: string): boolean {
+    return (
+      this.detectOtFieldRequest(normalizedQuery) !== null ||
+      this.isOtDetailFollowUp(normalizedQuery) ||
+      this.isLatestItemFollowUp(normalizedQuery) ||
+      this.isHistoryFollowUp(normalizedQuery) ||
+      this.isWorkRequest(normalizedQuery) ||
+      this.isDetailRequest(normalizedQuery)
+    );
+  }
 
+  private hasExplicitNewScope(
+    query: string,
+    normalizedQuery: string,
+    parsed: { intent: QueryIntent; value: string | null; originalEntity: string }
+  ): boolean {
+    if (parsed.intent === 'ot' && parsed.value) return true;
+    if (this.isHistoryRequest(normalizedQuery)) return true;
+    if (this.isStandaloneDynamicQuery(normalizedQuery)) return true;
+
+    const bestCompany = this.getBestMatches(query, 'empresa')[0];
+    const bestAsset = this.getBestMatches(query, 'activo')[0];
+    if (bestCompany && bestCompany.score >= 70) return true;
+    if (bestAsset && bestAsset.score >= 70) return true;
+
+    return false;
+  }
+
+  private isOtDetailFollowUp(normalizedQuery: string): boolean {
     return this.includesAny(normalizedQuery, [
-      'y',
-      'y sus',
-      'sus',
-      'sus trabajos',
-      'sus ordenes',
-      'sus órdenes',
-      'que trabajos tiene',
-      'qué trabajos tiene',
-      'que trabajos hizo',
-      'qué trabajos hizo',
-      'mostrame el detalle',
-      'mostrar detalle',
       'detalle',
-      'ver detalle',
-      'mas detalle',
-      'más detalle',
-      'ampliame',
-      'amplia',
-      'ampliar',
-      'quiero mas',
-      'quiero más',
-      'segui',
-      'seguí',
-      'continua',
-      'continúa',
+      'detalles',
+      'informacion',
+      'información',
+      'mas informacion',
+      'más información',
+      'info',
+      'que se hizo',
+      'qué se hizo',
+      'trabajos realizados',
+      'trabajo realizado',
     ]);
+  }
+
+  private isLatestItemFollowUp(normalizedQuery: string): boolean {
+    const compact = normalizedQuery.trim().replace(/\s+/g, ' ');
+    return /^(?:y\s+)?(?:la\s+)?(?:ultima|utlima)$/.test(compact);
   }
 
   private isWorkRequest(normalizedQuery: string): boolean {
@@ -397,8 +450,11 @@ export class ChatService {
       'ots',
       'que hizo',
       'qué hizo',
+      'que se hizo',
+      'qué se hizo',
       'que trabajos',
       'qué trabajos',
+      'trabajos realizados',
       'sus trabajos',
       'sus ordenes',
       'sus órdenes',
@@ -425,24 +481,178 @@ export class ChatService {
     ]);
   }
 
-  private setContext(type: GlobalMatchType, value: string): void {
-    this.lastContext = { type, value };
+  private rememberOt(ot: OtItem): void {
+    this.session = {
+      ...this.session,
+      mode: 'single',
+      entityType: 'ot',
+      entityValue: ot.ot_numero,
+      activeOtNumber: ot.ot_numero,
+      activeList: [],
+      exactDateIso: null,
+      month: null,
+      year: null,
+      latest: false,
+      limit: null,
+    };
   }
 
-  private clearContext(): void {
-    this.lastContext = { type: null, value: null };
+  private detectOtFieldRequest(
+    normalizedQuery: string
+  ):
+    | 'trabajo_realizado'
+    | 'materiales'
+    | 'responsable'
+    | 'ubicacion'
+    | 'observaciones'
+    | 'motivo'
+    | 'tipo'
+    | 'resumen'
+    | null {
+    if (
+      this.includesAny(normalizedQuery, [
+        'resumen',
+      ])
+    ) {
+      return 'resumen';
+    }
+
+    if (
+      this.includesAny(normalizedQuery, [
+        'que se hizo',
+        'qué se hizo',
+        'trabajo realizado',
+        'trabajos realizados',
+        'solo trabajo realizado',
+        'solo trabajos realizados',
+      ])
+    ) {
+      return 'trabajo_realizado';
+    }
+
+    if (this.includesAny(normalizedQuery, ['materiales', 'solo materiales', 'material'])) {
+      return 'materiales';
+    }
+
+    if (this.includesAny(normalizedQuery, ['responsable', 'solo responsable'])) {
+      return 'responsable';
+    }
+
+    if (this.includesAny(normalizedQuery, ['ubicacion', 'ubicación', 'solo ubicacion', 'solo ubicación'])) {
+      return 'ubicacion';
+    }
+
+    if (this.includesAny(normalizedQuery, ['observaciones', 'solo observaciones', 'observacion', 'observación'])) {
+      return 'observaciones';
+    }
+
+    if (this.includesAny(normalizedQuery, ['motivo', 'solo motivo'])) {
+      return 'motivo';
+    }
+
+    if (this.includesAny(normalizedQuery, ['tipo', 'solo tipo'])) {
+      return 'tipo';
+    }
+
+    return null;
+  }
+
+  private formatOtFieldResponse(
+    ot: OtItem,
+    field:
+      | 'trabajo_realizado'
+      | 'materiales'
+      | 'responsable'
+      | 'ubicacion'
+      | 'observaciones'
+      | 'motivo'
+      | 'tipo'
+      | 'resumen'
+  ): string {
+    if (field === 'resumen') {
+      const materiales = ot.materiales?.length
+        ? ot.materiales.join(', ')
+        : 'Sin materiales registrados';
+      return [
+        `Resumen de ${ot.ot_numero}:`,
+        `• Activo: ${ot.activo}`,
+        `• Empresa: ${ot.empresa}`,
+        `• Fecha: ${ot.fecha}`,
+        `• Tipo: ${ot.tipo}`,
+        `• Motivo: ${ot.motivo}`,
+        `• Trabajo realizado: ${ot.trabajo_realizado}`,
+        `• Responsable: ${ot.responsable}`,
+        `• Materiales: ${materiales}`,
+      ].join('\n');
+    }
+
+    if (field === 'materiales') {
+      const materiales = ot.materiales?.length
+        ? ot.materiales.join(', ')
+        : 'Sin materiales registrados';
+      return `Materiales de ${ot.ot_numero}: ${materiales}`;
+    }
+
+    if (field === 'trabajo_realizado') {
+      return `Trabajo realizado en ${ot.ot_numero}: ${ot.trabajo_realizado}`;
+    }
+
+    if (field === 'responsable') {
+      return `Responsable de ${ot.ot_numero}: ${ot.responsable}`;
+    }
+
+    if (field === 'ubicacion') {
+      return `Ubicación de ${ot.ot_numero}: ${ot.ubicacion}`;
+    }
+
+    if (field === 'observaciones') {
+      return `Observaciones de ${ot.ot_numero}: ${ot.observaciones}`;
+    }
+
+    if (field === 'motivo') {
+      return `Motivo de ${ot.ot_numero}: ${ot.motivo}`;
+    }
+
+    return `Tipo de ${ot.ot_numero}: ${ot.tipo}`;
+  }
+
+  private rememberList(params: {
+    mode: 'list' | 'history' | 'dynamic';
+    items: OtItem[];
+    entityType: 'activo' | 'empresa' | 'periodo' | null;
+    entityValue: string | null;
+    sortOrder?: 'asc' | 'desc';
+    year?: number | null;
+    month?: number | null;
+    exactDateIso?: string | null;
+    latest?: boolean;
+    limit?: number | null;
+  }): void {
+    this.session = {
+      ...this.session,
+      mode: params.mode,
+      entityType: params.entityType,
+      entityValue: params.entityValue,
+      activeOtNumber: null,
+      activeList: params.items,
+      sortOrder: params.sortOrder ?? this.session.sortOrder,
+      year: params.year ?? null,
+      month: params.month ?? null,
+      exactDateIso: params.exactDateIso ?? null,
+      latest: params.latest ?? false,
+      limit: params.limit ?? null,
+    };
   }
 
   resetConversationContext(): void {
     this.turnCounter = 0;
-    this.lastIntent = null;
-    this.historyContext = null;
-    this.lastDynamicTurn = -1;
-    this.lastDynamicContext = null;
-    this.clearContext();
+    this.session = this.createEmptySession();
   }
 
-  private resolveHistoryRequest(query: string, normalizedQuery: string): string | null {
+  private resolveHistoryRequest(
+    query: string,
+    normalizedQuery: string
+  ): string | null {
     if (!this.isHistoryRequest(normalizedQuery)) return null;
 
     let scopeEntity: string | null = null;
@@ -453,11 +663,11 @@ export class ChatService {
 
     if (
       !scopeEntity &&
-      this.lastContext.type === 'activo' &&
-      this.lastContext.value &&
+      this.session.entityType === 'activo' &&
+      this.session.entityValue &&
       this.includesAny(normalizedQuery, ['este barco', 'este activo', 'ese barco', 'ese activo'])
     ) {
-      scopeEntity = this.lastContext.value;
+      scopeEntity = this.session.entityValue;
     }
 
     if (!scopeEntity) {
@@ -468,37 +678,10 @@ export class ChatService {
     const sortOrder = this.extractHistorySortOrder(normalizedQuery) ?? 'desc';
     const wantsLatest = this.includesAny(normalizedQuery, ['ultima', 'última']);
 
-    this.historyContext = { scopeEntity, sortOrder, year };
-    this.setContext('activo', scopeEntity);
     return this.buildHistoryResponse({
       scopeEntity,
       sortOrder,
       year,
-      latestOnly: wantsLatest,
-    });
-  }
-
-  private resolveHistoryFollowUp(query: string, normalizedQuery: string): string | null {
-    if (!this.historyContext) return null;
-    if (!this.isHistoryFollowUp(normalizedQuery)) return null;
-
-    const next = { ...this.historyContext };
-    const detectedSort = this.extractHistorySortOrder(normalizedQuery);
-    if (detectedSort) next.sortOrder = detectedSort;
-
-    const followUpYear = this.extractYearFromNormalizedQuery(normalizedQuery);
-    if (followUpYear !== null && this.includesAny(normalizedQuery, ['solo', 'del', 'de'])) {
-      next.year = followUpYear;
-    }
-
-    const wantsLatest = this.includesAny(normalizedQuery, ['ultima', 'última']);
-    this.historyContext = next;
-    this.setContext('activo', next.scopeEntity);
-
-    return this.buildHistoryResponse({
-      scopeEntity: next.scopeEntity,
-      sortOrder: next.sortOrder,
-      year: next.year,
       latestOnly: wantsLatest,
     });
   }
@@ -554,7 +737,6 @@ export class ChatService {
     const yearMatch = normalizedQuery.match(/\b(19\d{2}|20\d{2})\b/);
     return yearMatch ? Number(yearMatch[1]) : null;
   }
-
   private buildHistoryResponse(params: {
     scopeEntity: string;
     sortOrder: 'asc' | 'desc';
@@ -573,6 +755,7 @@ export class ChatService {
     results = sortOrder === 'asc' ? this.sortByFechaAsc(results) : sortByFechaDesc(results);
 
     if (!results.length) {
+      this.session = this.createEmptySession();
       if (year !== null) {
         return `No encontré OTs para el activo "${scopeEntity}" en ${year}.`;
       }
@@ -580,15 +763,30 @@ export class ChatService {
     }
 
     if (latestOnly) {
-      return this.formatSingleOt(results[0]);
+      const latestOt = sortByFechaDesc(results)[0];
+      if (!latestOt) {
+        return `No encontré OTs para el activo "${scopeEntity}".`;
+      }
+      this.rememberOt(latestOt);
+      return this.formatSingleOt(latestOt);
     }
 
-    const orderLabel = sortOrder === 'asc' ? 'de más viejo a más nuevo' : 'de más nuevo a más viejo';
+    const orderLabel =
+      sortOrder === 'asc' ? 'de más viejo a más nuevo' : 'de más nuevo a más viejo';
     const yearLabel = year !== null ? ` en ${year}` : '';
     const title = `Historial de "${scopeEntity}"${yearLabel} (${orderLabel}):`;
-    return this.formatOtList(title, results);
+    this.rememberList({
+      mode: 'history',
+      items: results,
+      entityType: 'activo',
+      entityValue: scopeEntity,
+      sortOrder,
+      year,
+      latest: false,
+      limit: null,
+    });
+    return this.formatHistoryOtList(title, results);
   }
-
   private sortByFechaAsc(items: OtItem[]): OtItem[] {
     return [...items].sort((a, b) => a.fecha.localeCompare(b.fecha));
   }
@@ -623,11 +821,11 @@ export class ChatService {
     return [
       'Hola, soy Parks OT Assistant.',
       '',
-      'Puedo ayudarte a consultar OTs por número, empresa, activo, fecha o mes.',
+      'Puedo asistirte con seguimiento operativo de OTs por número, activo, empresa y período.',
       'Ejemplos:',
       '• "OT-011"',
       '• "últimas 5 del Aurora I"',
-      '• "qué OTs se hicieron el 26/03/2026"',
+      '• "historial de Aurora I"',
       '• "qué OTs hubo en marzo 2025"',
     ].join('\n');
   }
@@ -748,10 +946,11 @@ export class ChatService {
   }
 
   private isLooseInputWithoutContext(normalizedQuery: string): boolean {
-    const hasRecentDynamicContext =
-      this.lastDynamicContext !== null && this.turnCounter - this.lastDynamicTurn <= 1;
-    const hasConversationalContext = !!this.lastContext.type && !!this.lastContext.value;
-    if (hasRecentDynamicContext || hasConversationalContext) return false;
+    const hasConversationalContext =
+      this.session.mode !== 'idle' ||
+      !!this.session.activeOtNumber ||
+      this.session.activeList.length > 0;
+    if (hasConversationalContext) return false;
 
     const isOnlyYear = /^\d{4}$/.test(normalizedQuery);
     const isOneWordEntityLike =
@@ -779,14 +978,28 @@ export class ChatService {
   }
 
   private resolveDynamicFollowUp(query: string, normalizedQuery: string): string | null {
-    if (!this.lastDynamicContext) return null;
-    if (this.turnCounter - this.lastDynamicTurn !== 1) return null;
+    if (this.session.mode !== 'dynamic') return null;
     if (this.isStandaloneDynamicQuery(normalizedQuery)) return null;
 
     const patch = this.extractDynamicFollowUpPatch(query, normalizedQuery);
     if (!patch.hasPatch) return null;
 
-    const next = { ...this.lastDynamicContext };
+    const next = {
+      exactDateIso: this.session.exactDateIso,
+      month: this.session.month,
+      year: this.session.year,
+      asksCount: false,
+      latest: this.session.latest,
+      limit: this.session.limit,
+      scopeType:
+        this.session.entityType === 'empresa' || this.session.entityType === 'activo'
+          ? this.session.entityType
+          : null,
+      scopeEntity:
+        this.session.entityType === 'empresa' || this.session.entityType === 'activo'
+          ? this.session.entityValue
+          : null,
+    };
 
     if (patch.exactDateIso !== null) {
       next.exactDateIso = patch.exactDateIso;
@@ -1020,20 +1233,25 @@ export class ChatService {
       );
     }
 
-    const baseDynamicContext = {
-      exactDateIso: meta.exactDateIso,
-      month: meta.month,
-      year: meta.year,
-      asksCount: meta.asksCount,
-      latest: meta.latest,
-      limit: meta.limit,
-      scopeType,
-      scopeEntity,
-    };
-
-    const rememberDynamic = (ctx = baseDynamicContext): void => {
-      this.lastDynamicContext = ctx;
-      this.lastDynamicTurn = this.turnCounter;
+    const rememberDynamicList = (
+      items: OtItem[],
+      year: number | null,
+      exactDateIso: string | null,
+      latest: boolean,
+      limit: number | null
+    ): void => {
+      this.rememberList({
+        mode: 'dynamic',
+        items,
+        entityType: scopeType ?? 'periodo',
+        entityValue: scopeEntity,
+        sortOrder: 'desc',
+        year,
+        month: meta.month,
+        exactDateIso,
+        latest,
+        limit,
+      });
     };
 
     let results = scoped;
@@ -1042,10 +1260,10 @@ export class ChatService {
       results = filterByExactDate(results, meta.exactDateIso);
       const displayDate = formatIsoDateToDisplay(meta.exactDateIso);
       if (!results.length) {
-        rememberDynamic();
+        this.session = this.createEmptySession();
         return `No encontré OTs para la fecha ${displayDate}.`;
       }
-      rememberDynamic();
+      rememberDynamicList(sortByFechaDesc(results), null, meta.exactDateIso, false, null);
       return this.formatOtList(
         `Encontré ${results.length} ${this.otCountLabel(results.length)} para la fecha ${displayDate}:`,
         results
@@ -1062,16 +1280,16 @@ export class ChatService {
         : '';
 
       if (meta.asksCount) {
-        rememberDynamic();
+        rememberDynamicList(results, meta.year, null, false, null);
         return `En ${monthLabel} de ${meta.year}${defaultYearMsg} hubo ${results.length} ${this.otCountLabel(results.length)}.`;
       }
 
       if (!results.length) {
-        rememberDynamic();
+        this.session = this.createEmptySession();
         return `No encontré OTs en ${monthLabel} de ${meta.year}${defaultYearMsg}.`;
       }
 
-      rememberDynamic();
+      rememberDynamicList(results, meta.year, null, false, null);
       return this.formatOtList(
         `Encontré ${results.length} ${this.otCountLabel(results.length)} en ${monthLabel} de ${meta.year}${defaultYearMsg}:`,
         results
@@ -1084,16 +1302,16 @@ export class ChatService {
       results = sortByFechaDesc(results);
 
       if (meta.asksCount) {
-        rememberDynamic();
+        rememberDynamicList(results, meta.year, null, false, null);
         return `En ${meta.year} hubo ${results.length} ${this.otCountLabel(results.length)}.`;
       }
 
       if (!results.length) {
-        rememberDynamic();
+        this.session = this.createEmptySession();
         return `No encontré OTs en ${meta.year}.`;
       }
 
-      rememberDynamic();
+      rememberDynamicList(results, meta.year, null, false, null);
       return this.formatOtList(
         `Encontré ${results.length} ${this.otCountLabel(results.length)} en ${meta.year}:`,
         results
@@ -1104,7 +1322,10 @@ export class ChatService {
     if (meta.latest && !meta.limit) {
       const defaultLatest = 5;
       const latestResults = sortByFechaDesc(results).slice(0, defaultLatest);
-      if (!latestResults.length) return 'No encontré resultados para esa consulta.';
+      if (!latestResults.length) {
+        this.session = this.createEmptySession();
+        return 'No encontré resultados para esa consulta.';
+      }
 
       const title = this.buildDynamicLimitedTitle({
         found: latestResults.length,
@@ -1112,11 +1333,7 @@ export class ChatService {
         latest: true,
         scopeEntity,
       });
-      rememberDynamic({
-        ...baseDynamicContext,
-        latest: true,
-        limit: defaultLatest,
-      });
+      rememberDynamicList(latestResults, null, null, true, defaultLatest);
       return this.formatOtList(title, latestResults);
     }
 
@@ -1126,7 +1343,10 @@ export class ChatService {
 
     if (meta.limit) {
       const limited = results.slice(0, meta.limit);
-      if (!limited.length) return 'No encontré resultados para esa consulta.';
+      if (!limited.length) {
+        this.session = this.createEmptySession();
+        return 'No encontré resultados para esa consulta.';
+      }
 
       const title = this.buildDynamicLimitedTitle({
         found: limited.length,
@@ -1134,7 +1354,7 @@ export class ChatService {
         latest: meta.latest,
         scopeEntity,
       });
-      rememberDynamic();
+      rememberDynamicList(limited, null, null, !!meta.latest, meta.limit);
       return this.formatOtList(title, limited);
     }
 
@@ -1209,6 +1429,10 @@ export class ChatService {
     return utilFormatDetailedOtList(title, items);
   }
 
+  private formatHistoryOtList(title: string, items: OtItem[]): string {
+    return utilFormatHistoryOtList(title, items);
+  }
+
   private formatMultipleMatches(title: string, matches: RankedMatch[]): string {
     return utilFormatMultipleMatches(title, matches);
   }
@@ -1225,4 +1449,8 @@ export class ChatService {
     return utilEscapeRegex(value);
   }
 }
+
+
+
+
 

@@ -1,4 +1,4 @@
-import { OtItem, RankedMatch } from './chat.types';
+﻿import { OtItem, RankedMatch } from './chat.types';
 
 export function formatSingleOt(item: OtItem): string {
   const materialesTexto = item.materiales?.length
@@ -56,6 +56,14 @@ export function formatDetailedOtList(title: string, items: OtItem[]): string {
   return [title, ``, ...lines, ...extra].join('\n');
 }
 
+export function formatHistoryOtList(title: string, items: OtItem[]): string {
+  const lines = items.map(
+    (item) => `• ${item.fecha} | ${item.ot_numero} | ${item.tipo} | ${item.empresa}`
+  );
+
+  return [title, ``, ...lines].join('\n');
+}
+
 export function formatMultipleMatches(title: string, matches: RankedMatch[]): string {
   const lines = matches.map((match) => `• ${match.value} (${match.type})`);
 
@@ -67,3 +75,4 @@ export function formatMultipleMatches(title: string, matches: RankedMatch[]): st
     'Sé más específico para ver el detalle de una coincidencia.',
   ].join('\n');
 }
+
