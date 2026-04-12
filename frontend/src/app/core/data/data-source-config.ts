@@ -10,7 +10,7 @@ export interface DataSourceConfig {
 }
 
 export const DEFAULT_DATA_SOURCE_CONFIG: DataSourceConfig = {
-    mode: 'local',
+    mode: 'api',
     apiBaseUrl: 'http://localhost:3001/api/v1',
     fallbackToLocalOnApiError: true,
     requestTimeoutMs: 4000
