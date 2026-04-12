@@ -9,19 +9,19 @@ import { OtRepository } from "../repositories/ot-repository";
 export class OtReadService {
     constructor(private readonly repository: OtRepository) {}
 
-    queryOts(query?: OtQuery) {
-        return this.repository.queryOts(query);
+    async queryOts(query?: OtQuery) {
+        return await this.repository.queryOts(query);
     }
 
-    queryCompanies(query?: CompanyQuery) {
-        return this.repository.queryCompanies(query);
+    async queryCompanies(query?: CompanyQuery) {
+        return await this.repository.queryCompanies(query);
     }
 
-    queryAssets(query?: AssetQuery) {
-        return this.repository.queryAssets(query);
+    async queryAssets(query?: AssetQuery) {
+        return await this.repository.queryAssets(query);
     }
 
-    countOts(query?: OtCountQuery) {
-        return this.repository.countOts(query);
+    async countOts(query?: OtCountQuery) {
+        return await this.repository.countOts(query);
     }
 }

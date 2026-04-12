@@ -6,7 +6,7 @@ export async function registerAssetRoutes(app: FastifyInstance, service: OtReadS
     app.get("/assets", async (request, reply) => {
         try {
             const query = parseAssetQuery(request.query as Record<string, unknown>);
-            return service.queryAssets(query);
+            return await service.queryAssets(query);
         } catch (error) {
             return reply.status(400).send({
                 error: (error as Error).message

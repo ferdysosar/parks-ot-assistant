@@ -11,9 +11,9 @@ import {
 } from "../contracts/ot-contracts";
 
 export interface OtRepository {
-    queryOts(query?: OtQuery): PagedResponse<OtDto>;
-    getOtByNumber(otNumber: string): OtDto | null;
-    queryCompanies(query?: CompanyQuery): PagedResponse<CompanyDto>;
-    queryAssets(query?: AssetQuery): PagedResponse<AssetDto>;
-    countOts(query?: OtCountQuery): OtCountDto;
+    queryOts(query?: OtQuery): Promise<PagedResponse<OtDto>>;
+    getOtByNumber(otNumber: string): Promise<OtDto | null>;
+    queryCompanies(query?: CompanyQuery): Promise<PagedResponse<CompanyDto>>;
+    queryAssets(query?: AssetQuery): Promise<PagedResponse<AssetDto>>;
+    countOts(query?: OtCountQuery): Promise<OtCountDto>;
 }

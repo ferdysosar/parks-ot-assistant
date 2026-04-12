@@ -6,7 +6,7 @@ export async function registerOtRoutes(app: FastifyInstance, service: OtReadServ
     app.get("/ots", async (request, reply) => {
         try {
             const query = parseOtQuery(request.query as Record<string, unknown>);
-            return service.queryOts(query);
+            return await service.queryOts(query);
         } catch (error) {
             return reply.status(400).send({
                 error: (error as Error).message
@@ -17,7 +17,7 @@ export async function registerOtRoutes(app: FastifyInstance, service: OtReadServ
     app.get("/ots/count", async (request, reply) => {
         try {
             const query = parseOtCountQuery(request.query as Record<string, unknown>);
-            return service.countOts(query);
+            return await service.countOts(query);
         } catch (error) {
             return reply.status(400).send({
                 error: (error as Error).message

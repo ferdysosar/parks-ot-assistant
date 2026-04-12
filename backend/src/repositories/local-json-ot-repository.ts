@@ -117,7 +117,7 @@ export class LocalJsonOtRepository implements OtRepository {
         this.ots = ots;
     }
 
-    queryOts(query?: OtQuery): PagedResponse<OtDto> {
+    async queryOts(query?: OtQuery): Promise<PagedResponse<OtDto>> {
         const normalizedOtNumber = query?.otNumber ? this.normalize(query.otNumber) : null;
         let items = this.ots.filter((item) => {
             if (normalizedOtNumber && this.normalize(item.otNumber) !== normalizedOtNumber) return false;
@@ -134,12 +134,12 @@ export class LocalJsonOtRepository implements OtRepository {
         return this.paginate(items, query?.limit, query?.offset);
     }
 
-    getOtByNumber(otNumber: string): OtDto | null {
+    async getOtByNumber(otNumber: string): Promise<OtDto | null> {
         const normalized = this.normalize(otNumber);
         return this.ots.find((item) => this.normalize(item.otNumber) === normalized) ?? null;
     }
 
-    queryCompanies(query?: CompanyQuery): PagedResponse<CompanyDto> {
+    async queryCompanies(query?: CompanyQuery): Promise<PagedResponse<CompanyDto>> {
         const search = query?.search ? this.normalize(query.search) : null;
         const items = this.companies.filter((item) => {
             if (!search) return true;
@@ -148,7 +148,7 @@ export class LocalJsonOtRepository implements OtRepository {
         return this.paginate(items, query?.limit, query?.offset);
     }
 
-    queryAssets(query?: AssetQuery): PagedResponse<AssetDto> {
+    async queryAssets(query?: AssetQuery): Promise<PagedResponse<AssetDto>> {
         const search = query?.search ? this.normalize(query.search) : null;
         const items = this.assets.filter((item) => {
             if (query?.companyId && item.companyId !== query.companyId) return false;
@@ -158,9 +158,9 @@ export class LocalJsonOtRepository implements OtRepository {
         return this.paginate(items, query?.limit, query?.offset);
     }
 
-    countOts(query?: OtCountQuery): OtCountDto {
+    async countOts(query?: OtCountQuery): Promise<OtCountDto> {
         const groupBy = query?.groupBy ?? "month";
-        const filtered = this.queryOts({
+        const filtered = (await this.queryOts({
             companyId: query?.companyId,
             assetId: query?.assetId,
             from: query?.from,
@@ -168,7 +168,7 @@ export class LocalJsonOtRepository implements OtRepository {
             sort: "-workDate",
             limit: this.ots.length,
             offset: 0
-        }).items;
+        })).items;
 
         const buckets = new Map<string, number>();
         for (const ot of filtered) {

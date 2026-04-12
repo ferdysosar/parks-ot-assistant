@@ -16,7 +16,13 @@ Backend de solo lectura para exponer API REST sobre el dataset temporal.
 - `GET /api/v1/companies`
 - `GET /api/v1/assets`
 
-## Fuente de datos temporal
+## Selección de repositorio
+
+- `REPOSITORY_DRIVER=local-json` (default)
+- `REPOSITORY_DRIVER=postgres`
+- `REPOSITORY_FALLBACK_LOCAL=true` (default): si postgres falla, usa JSON local
+
+## Fuente local temporal (JSON)
 
 Lee por defecto:
 
@@ -27,3 +33,14 @@ Variables opcionales para override:
 
 - `OTS_DATA_PATH`
 - `COMPANIES_DATA_PATH`
+
+## PostgreSQL
+
+- Esquema SQL inicial en `migrations/001_init_schema.sql`
+- Carga de demo opcional: `npm run seed:demo:pg`
+
+Variables soportadas:
+
+- `DATABASE_URL` (preferido)
+- o `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
+- `DATABASE_SSL=require` para conexión SSL
