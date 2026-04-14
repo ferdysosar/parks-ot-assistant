@@ -1,20 +1,29 @@
-﻿# Parks OT Assistant - Frontend
+# Parks OT Assistant Frontend
 
-Este directorio contiene la aplicación Angular del proyecto.
+Aplicación Angular del asistente.
 
-## Uso rápido (desde `frontend/`)
+## Uso rápido
 
 ```bash
 npm ci
 npm run start
 ```
 
-Aplicación local:
+URLs:
 
-- `http://localhost:4200/` (dashboard/template base)
-- `http://localhost:4200/landing` (experiencia principal del asistente)
+- `http://localhost:4200/`
+- `http://localhost:4200/landing`
 
-Documentación completa:
+## Configuración de datasource
 
-- [README del repositorio](../README.md)
-- [Guía detallada de setup local](../docs/setup-local.md)
+Editar `public/runtime-config.js`:
+
+- `mode: 'api'`: consume backend REST.
+- `mode: 'local'`: usa JSON local.
+- `apiBaseUrl`: base URL de la API.
+- `fallbackToLocalOnApiError`: fallback local cuando la API falla.
+
+## Referencias
+
+- [README raíz](../README.md)
+- [Setup local](../docs/setup-local.md)

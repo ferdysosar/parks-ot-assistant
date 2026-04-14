@@ -1,12 +1,39 @@
-# Parks OT Assistant Backend (v1 mínimo)
+# Parks OT Assistant Backend
 
-Backend de solo lectura para exponer API REST sobre el dataset temporal.
+Backend REST v1 de solo lectura para OTs, empresas y activos.
+
+## Configuración
+
+1. Copiar plantilla:
+
+```bash
+cp .env.example .env
+```
+
+PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+2. Elegir modo de repositorio en `.env`:
+
+- `REPOSITORY_DRIVER=local-json` (default)
+- `REPOSITORY_DRIVER=postgres`
+
+3. Si usás postgres, configurar conexión:
+
+- `DATABASE_URL` (recomendado), o
+- `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
 
 ## Scripts
 
-- `npm run dev`: inicia en modo desarrollo (`tsx watch`)
-- `npm run build`: compila TypeScript a `dist/`
-- `npm run start`: ejecuta build compilado
+- `npm run dev`: inicia backend y toma configuración desde `.env`.
+- `npm run dev:local`: fuerza `local-json`.
+- `npm run dev:postgres`: fuerza `postgres`.
+- `npm run build`: compila TypeScript.
+- `npm run start`: ejecuta build.
+- `npm run seed:demo:pg`: carga datos demo en PostgreSQL.
 
 ## Endpoints
 
@@ -16,31 +43,12 @@ Backend de solo lectura para exponer API REST sobre el dataset temporal.
 - `GET /api/v1/companies`
 - `GET /api/v1/assets`
 
-## Selección de repositorio
+## Migraciones y seed
 
-- `REPOSITORY_DRIVER=local-json` (default)
-- `REPOSITORY_DRIVER=postgres`
-- `REPOSITORY_FALLBACK_LOCAL=true` (default): si postgres falla, usa JSON local
+1. Ejecutar `migrations/001_init_schema.sql`.
+2. Ejecutar `npm run seed:demo:pg`.
 
-## Fuente local temporal (JSON)
+## Fallback
 
-Lee por defecto:
-
-- `../frontend/src/assets/ots-demo.json`
-- `../frontend/src/data/empresas-activos.json`
-
-Variables opcionales para override:
-
-- `OTS_DATA_PATH`
-- `COMPANIES_DATA_PATH`
-
-## PostgreSQL
-
-- Esquema SQL inicial en `migrations/001_init_schema.sql`
-- Carga de demo opcional: `npm run seed:demo:pg`
-
-Variables soportadas:
-
-- `DATABASE_URL` (preferido)
-- o `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
-- `DATABASE_SSL=require` para conexión SSL
+- `REPOSITORY_FALLBACK_LOCAL=true` (default): si postgres falla, usa `LocalJsonOtRepository`.
+- `REPOSITORY_FALLBACK_LOCAL=false`: falla explícitamente si postgres no está disponible.

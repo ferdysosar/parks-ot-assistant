@@ -1,140 +1,87 @@
 # Setup Local - Parks OT Assistant
 
-Guía detallada para clonar y ejecutar el proyecto en otra máquina.
+Guía mínima para levantar frontend + backend en entorno local.
 
-## 1) Requisitos previos
+## 1) Requisitos
 
-- Git instalado
-- Node.js compatible con Angular 21
-- npm (incluido con Node)
+- Node.js (usar `.nvmrc`)
+- npm
+- PostgreSQL (opcional, solo para modo `postgres`)
 
-### Versión recomendada de Node
-
-Este proyecto usa Angular 21. Según los paquetes instalados, la compatibilidad es:
-
-- `^20.19.0` o
-- `^22.12.0` o
-- `>=24.0.0`
-
-Recomendación práctica para desarrollo local:
-
-- **Node 22 LTS** (usando `.nvmrc`)
-
-## 2) Clonar repositorio
-
-```bash
-git clone <URL_DEL_REPO>
-cd parks-ot-assistant
-```
-
-## 3) Seleccionar versión de Node
-
-Si usás nvm:
-
-```bash
-nvm use
-```
-
-Si no tenés la versión instalada:
-
-```bash
-nvm install
-nvm use
-```
-
-## 4) Instalar dependencias
+## 2) Instalar dependencias
 
 ```bash
 cd frontend
 npm ci
+
+cd ../backend
+npm ci
+cp .env.example .env
 ```
 
-> Si no tenés lockfile consistente, podés usar `npm install`, pero para reproducibilidad se recomienda `npm ci`.
+PowerShell:
 
-## 5) Ejecutar aplicación
+```powershell
+Copy-Item .env.example .env
+```
+
+## 3) Levantar backend
+
+Desde `backend/`:
 
 ```bash
-npm run start
+npm run dev
 ```
 
-## 6) URL local esperada
+Backend por defecto:
 
-- http://localhost:4200/
+- `http://localhost:3001`
+- `http://localhost:3001/health`
+- `http://localhost:3001/api/v1/ots`
 
-## 7) Comandos útiles
+### Modos de backend
+
+- `npm run dev:local`: fuerza repositorio local JSON.
+- `npm run dev:postgres`: fuerza repositorio postgres.
+- `REPOSITORY_FALLBACK_LOCAL=true` permite fallback local si postgres no responde.
+
+## 4) Levantar frontend
 
 Desde `frontend/`:
 
-- Desarrollo: `npm run start`
-- Build: `npm run build`
-- Tests: `npm run test`
-
-## 8) Variables de entorno
-
-Actualmente, el proyecto **no requiere variables de entorno obligatorias** para correr en local.
-
-Se incluye `frontend/.env.example` como plantilla para futuras integraciones (API, backend o despliegue en contenedores).
-
-## 9) Problemas comunes y solución
-
-### a) `ng` no reconocido
-
-Usar scripts npm en lugar de comando global:
-
 ```bash
 npm run start
 ```
 
-### b) Puerto 4200 ocupado
+Frontend:
 
-Ejecutar en otro puerto:
+- `http://localhost:4200/`
+- `http://localhost:4200/landing`
 
-```bash
-npx ng serve --port 4201
-```
+## 5) Cambiar frontend entre modo local/api
 
-### c) Error por versión de Node
+Editar `frontend/public/runtime-config.js`:
 
-Verificar versión:
+- `mode: 'api'`: consume backend.
+- `mode: 'local'`: usa datasource local.
+- `apiBaseUrl`: URL base del backend (default `http://localhost:3001/api/v1`).
+- `fallbackToLocalOnApiError`: fallback local en modo `api`.
 
-```bash
-node -v
-```
+## 6) Usar PostgreSQL + seed demo
 
-Ajustar con nvm:
-
-```bash
-nvm use
-```
-
-### d) Fallo al instalar dependencias por caché corrupta
+1. Crear DB.
+2. Ejecutar migración `backend/migrations/001_init_schema.sql`.
+3. Configurar conexión en `backend/.env`.
+4. Poner `REPOSITORY_DRIVER=postgres`.
+5. Ejecutar seed:
 
 ```bash
-npm cache verify
-npm ci
+cd backend
+npm run seed:demo:pg
 ```
 
-### e) Tests en entorno sin navegador disponible
+## 7) Flujo recomendado para desarrollo diario
 
-Algunos entornos necesitan Chrome/Chromium para Karma. Si falla `npm run test`, verificar instalación del navegador local.
-
-## 10) Preparación para Docker (futuro)
-
-Sin dockerizar todavía, conviene dejar preparado:
-
-1. `.nvmrc` (ya agregado) para alinear versión Node.
-2. `frontend/.env.example` (ya agregado) para declarar configuración externa.
-3. `package.json` con scripts claros (ya está: start/build/test).
-4. Definir estrategia de build y servidor estático para producción (`ng build` + Nginx, por ejemplo).
-5. Agregar más adelante:
-   - `Dockerfile`
-   - `.dockerignore`
-   - `docker-compose.yml` (opcional para desarrollo)
-
-## 11) Organización recomendada (mínima y realista)
-
-El proyecto ya está razonablemente modular. Mejoras mínimas sugeridas para mantener profesionalidad:
-
-- Unificar naming de algunos componentes de landing a convención consistente (por ejemplo, `topbar-widget.component.ts`, `hero-widget.component.ts`) en una refactorización futura controlada.
-- Mantener documentación de setup en `docs/` y README raíz orientado a onboarding.
-- Evitar mezclar documentación académica (`Tareas/`) con documentación técnica de ejecución.
+1. Backend `local-json` para velocidad de iteración.
+2. Frontend en `mode: 'api'` para validar integración HTTP.
+3. Postgres solo cuando necesites validar persistencia real.
