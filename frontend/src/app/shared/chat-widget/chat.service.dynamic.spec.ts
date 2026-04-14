@@ -235,6 +235,27 @@ describe('ChatService dynamic queries', () => {
     expect(response).toContain('Carlos Gómez');
   });
 
+  it('resuelve empresa sobre OT activa', () => {
+    service.resolveQuery('OT-001');
+    const response = service.resolveQuery('empresa');
+    expect(response).toContain('Empresa de OT-001');
+    expect(response).toContain('Río Norte Logística');
+  });
+
+  it('resuelve activo sobre OT activa', () => {
+    service.resolveQuery('OT-001');
+    const response = service.resolveQuery('activo');
+    expect(response).toContain('Activo de OT-001');
+    expect(response).toContain('Aurora I');
+  });
+
+  it('resuelve fecha sobre OT activa', () => {
+    service.resolveQuery('OT-001');
+    const response = service.resolveQuery('fecha');
+    expect(response).toContain('Fecha de OT-001');
+    expect(response).toContain('2026-03-10');
+  });
+
   it('resuelve ubicacion sobre OT activa', () => {
     service.resolveQuery('OT-001');
     const response = service.resolveQuery('ubicación');

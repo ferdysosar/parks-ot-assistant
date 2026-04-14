@@ -518,6 +518,9 @@ export class ChatService {
     | 'observaciones'
     | 'motivo'
     | 'tipo'
+    | 'empresa'
+    | 'activo'
+    | 'fecha'
     | 'resumen'
     | null {
     if (
@@ -565,6 +568,18 @@ export class ChatService {
       return 'tipo';
     }
 
+    if (this.includesAny(normalizedQuery, ['empresa', 'compania', 'compañia', 'solo empresa'])) {
+      return 'empresa';
+    }
+
+    if (this.includesAny(normalizedQuery, ['activo', 'barco', 'buque', 'solo activo'])) {
+      return 'activo';
+    }
+
+    if (this.includesAny(normalizedQuery, ['fecha', 'solo fecha'])) {
+      return 'fecha';
+    }
+
     return null;
   }
 
@@ -578,6 +593,9 @@ export class ChatService {
       | 'observaciones'
       | 'motivo'
       | 'tipo'
+      | 'empresa'
+      | 'activo'
+      | 'fecha'
       | 'resumen'
   ): string {
     if (field === 'resumen') {
@@ -622,6 +640,18 @@ export class ChatService {
 
     if (field === 'motivo') {
       return `Motivo de ${ot.ot_numero}: ${ot.motivo}`;
+    }
+
+    if (field === 'empresa') {
+      return `Empresa de ${ot.ot_numero}: ${ot.empresa}`;
+    }
+
+    if (field === 'activo') {
+      return `Activo de ${ot.ot_numero}: ${ot.activo}`;
+    }
+
+    if (field === 'fecha') {
+      return `Fecha de ${ot.ot_numero}: ${ot.fecha}`;
     }
 
     return `Tipo de ${ot.ot_numero}: ${ot.tipo}`;
