@@ -40,6 +40,20 @@ describe('ChatService dynamic queries', () => {
     expect(response).toContain('de las 8 solicitadas para Aurora I');
   });
 
+  it('aplica interseccion empresa + activo en consulta dinamica combinada', () => {
+    const response = service.resolveQuery('ultimas 5 de rio norte aurora');
+
+    expect(response).toContain('OT-013');
+    expect(response).toContain('OT-011');
+    expect(response).toContain('OT-012');
+    expect(response).toContain('OT-001');
+    expect(response).toContain('OT-020');
+
+    expect(response).not.toContain('Centinela');
+    expect(response).not.toContain('OT-016');
+    expect(response).not.toContain('OT-015');
+  });
+
   it('soporta follow-up de cambio de ano', () => {
     service.resolveQuery('que OTs hubo en marzo');
     const response = service.resolveQuery('pero del 2025');

@@ -1204,6 +1204,8 @@ export class ChatService {
     const bestAsset = rankedAssets.length > 0 ? rankedAssets[0] : null;
     const companyStrong = !!bestCompany && bestCompany.score >= 65;
     const assetStrong = !!bestAsset && bestAsset.score >= 65;
+    const companyScopeEntity = companyStrong ? bestCompany.value : null;
+    const assetScopeEntity = assetStrong ? bestAsset.value : null;
 
     if (parsed.intent === 'empresa') {
       if (companyStrong) {
@@ -1234,7 +1236,17 @@ export class ChatService {
       }
     }
 
-    if (scopeEntity && scopeType === 'empresa') {
+    if (companyScopeEntity) {
+      scoped = scoped.filter(
+        (it) => this.normalizeText(it.empresa) === this.normalizeText(companyScopeEntity)
+      );
+    }
+
+    if (assetScopeEntity) {
+      scoped = scoped.filter(
+        (it) => this.normalizeText(it.activo) === this.normalizeText(assetScopeEntity)
+      );
+    } else if (scopeEntity && scopeType === 'empresa') {
       scoped = this.ots.filter(
         (it) => this.normalizeText(it.empresa) === this.normalizeText(scopeEntity as string)
       );
