@@ -20,4 +20,10 @@ describe('ChatWidget', () => {
   it('should create', () => {
     expect(component).toBeTruthy();
   });
+
+  it('inicia con saludo corto sin ejemplos', () => {
+    const initialMessage = component.messages[0]?.text ?? '';
+    expect(initialMessage).toBe('Hola, soy Parks OT Assistant. ¿En qué te puedo ayudar con las OTs?');
+    expect(initialMessage).not.toContain('Ejemplos');
+  });
 });

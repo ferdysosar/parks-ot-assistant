@@ -73,7 +73,11 @@ export class ChatService {
       const ot = this.findOtByNumber(parsed.value);
 
       if (!ot) {
-        return `No encontré la ${parsed.value}. Probá con otro número de OT.`;
+        return [
+          `No encontré una OT con el número ${parsed.value}.`,
+          'Probá con otro número de OT o buscá por empresa, activo, fecha o período.',
+          'Ejemplos: "OT-001", "OTs de una empresa", "OTs de un activo", "OTs de marzo 2025".',
+        ].join('\n');
       }
 
       this.rememberOt(ot);
@@ -290,7 +294,7 @@ export class ChatService {
       return this.buildLooseInputHelp(query);
     }
 
-    return 'No pude encontrar resultados con ese mensaje. Probá con algo más específico, por ejemplo: "OT-011", "últimas 5 del Aurora I", "qué OTs se hicieron el 26/03/2026" o "qué OTs hubo en marzo 2025".';
+    return 'No pude encontrar resultados con ese mensaje. Probá con algo más específico, por ejemplo: "OT-011", "últimas 5 órdenes", "qué OTs se hicieron el 26/03/2026" o "qué OTs hubo en marzo 2025".';
   }
 
   private createEmptySession(): ConversationState {
@@ -318,7 +322,7 @@ export class ChatService {
 
     if (this.isLatestItemFollowUp(normalizedQuery)) {
       if (!this.session.activeList.length) {
-        return 'Para responder "la última" primero necesito una lista activa. Ejemplo: "últimas 5 del Aurora I".';
+        return 'Para responder "la última" primero necesito una lista activa. Ejemplo: "últimas 5 órdenes".';
       }
 
       const latest = sortByFechaDesc(this.session.activeList)[0];
@@ -712,7 +716,7 @@ export class ChatService {
     }
 
     if (!scopeEntity) {
-      return 'Para armar el historial necesito que indiques el activo/barco. Ejemplo: "historial de Aurora I".';
+      return 'Para armar el historial necesito que indiques el activo/barco. Ejemplo: "historial de un activo".';
     }
 
     const year = this.extractYearFromNormalizedQuery(normalizedQuery);
@@ -861,13 +865,8 @@ export class ChatService {
   private buildGreetingResponse(): string {
     return [
       'Hola, soy Parks OT Assistant.',
-      '',
-      'Puedo asistirte con seguimiento operativo de OTs por número, activo, empresa y período.',
-      'Ejemplos:',
-      '• "OT-011"',
-      '• "últimas 5 del Aurora I"',
-      '• "historial de Aurora I"',
-      '• "qué OTs hubo en marzo 2025"',
+      'Podés consultar por número de OT, empresa, activo o período.',
+      'Ejemplos: "OT-001", "OTs de una empresa", "historial de un activo".',
     ].join('\n');
   }
 
@@ -884,14 +883,14 @@ export class ChatService {
     if (this.matchesFaqTopic(normalizedQuery, ['empresa'])) {
       return [
         'Podés buscar OTs por empresa indicando "empresa" y el nombre a consultar.',
-        'Ejemplo: "qué OTs tiene la empresa Naviera del Sur".',
+        'Ejemplo: "qué OTs tiene la empresa [nombre empresa]".',
       ].join('\n');
     }
 
     if (this.matchesFaqTopic(normalizedQuery, ['activo', 'barco', 'buque', 'embarcacion'])) {
       return [
         'Podés buscar OTs por activo mencionando el activo en la consulta.',
-        'Ejemplo: "qué OTs tiene el activo Remolcador Alfa".',
+        'Ejemplo: "qué OTs tiene el activo [nombre activo]".',
       ].join('\n');
     }
 
@@ -1009,12 +1008,13 @@ export class ChatService {
     }
 
     return [
-      `Entiendo "${q}", pero me falta un poco más de contexto.`,
+      `No pude interpretar bien "${q}".`,
       '',
       'Probá con algo como:',
-      '• "últimas 5 del Aurora I"',
-      '• "qué OTs hubo en marzo 2025"',
-      '• "qué OTs se hicieron el 26/03/2026"',
+      '• "OT-001"',
+      '• "OTs de una empresa"',
+      '• "historial de un activo"',
+      '• "OTs de marzo 2025"',
     ].join('\n');
   }
 

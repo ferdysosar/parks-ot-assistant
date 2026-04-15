@@ -107,6 +107,38 @@ describe('ChatService dynamic queries', () => {
     expect(response).not.toContain('Para consultar una OT por número');
   });
 
+  it('responde mensaje orientador cuando una OT explicita no existe', () => {
+    const response = service.resolveQuery('OT-053234');
+    expect(response).toContain('No encontré una OT con el número OT-053234.');
+    expect(response).toContain('empresa');
+    expect(response).toContain('activo');
+    expect(response).toContain('fecha o período');
+    expect(response).toContain('OTs de una empresa');
+    expect(response).toContain('OTs de un activo');
+    expect(response).not.toContain('Río Norte');
+    expect(response).not.toContain('Aurora I');
+    expect(response).not.toContain('No pude encontrar resultados con ese mensaje');
+  });
+
+  it('usa wording natural para input ambiguo sin afirmar entendimiento', () => {
+    const response = service.resolveQuery('asd');
+    expect(response).toContain('No pude interpretar bien "asd".');
+    expect(response).toContain('"OT-001"');
+    expect(response).toContain('"OTs de una empresa"');
+    expect(response).toContain('"historial de un activo"');
+    expect(response).toContain('"OTs de marzo 2025"');
+    expect(response).not.toContain('Entiendo "asd"');
+  });
+
+  it('responde hola con guía breve y ejemplos livianos', () => {
+    const response = service.resolveQuery('hola');
+    expect(response).toContain('Hola, soy Parks OT Assistant.');
+    expect(response).toContain('número de OT, empresa, activo o período');
+    expect(response).toContain('"OT-001"');
+    expect(response).toContain('"OTs de una empresa"');
+    expect(response).toContain('"historial de un activo"');
+  });
+
   it('resuelve detalle como follow-up de OT activa', () => {
     service.resolveQuery('OT-001');
     const response = service.resolveQuery('detalle');
