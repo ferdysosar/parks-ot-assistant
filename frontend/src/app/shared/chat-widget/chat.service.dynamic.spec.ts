@@ -88,6 +88,40 @@ describe('ChatService dynamic queries', () => {
     expect(cualTotalResponse).not.toContain('Detalle de trabajos de la lista actual');
   });
 
+  it('continua una lista dinamica con y el resto sin repetir el tramo inicial', () => {
+    const first = service.resolveQuery('ver las ultimas 10');
+    const second = service.resolveQuery('y el resto?');
+
+    const firstBatch = Array.from(first.matchAll(/•\s+(OT-\d+)/g)).map((m) => m[1]);
+    const secondBatch = Array.from(second.matchAll(/•\s+(OT-\d+)/g)).map((m) => m[1]);
+
+    expect(second).toContain('Mostrando');
+    expect(second).not.toContain('No pude encontrar resultados con ese mensaje');
+    expect(secondBatch.length).toBeGreaterThan(0);
+    expect(firstBatch.some((ot) => secondBatch.includes(ot))).toBeFalse();
+  });
+
+  it('continua ultimas por activo con mostrame mas', () => {
+    const first = service.resolveQuery('últimas 5 del aurora i');
+    const second = service.resolveQuery('mostrame más');
+
+    const firstBatch = Array.from(first.matchAll(/•\s+(OT-\d+)/g)).map((m) => m[1]);
+    const secondBatch = Array.from(second.matchAll(/•\s+(OT-\d+)/g)).map((m) => m[1]);
+
+    expect(second).toContain('Mostrando');
+    expect(second).not.toContain('No pude encontrar resultados con ese mensaje');
+    expect(secondBatch.length).toBeGreaterThan(0);
+    expect(firstBatch.some((ot) => secondBatch.includes(ot))).toBeFalse();
+  });
+
+  it('informa claramente cuando ya no hay mas resultados para continuar', () => {
+    service.resolveQuery('últimas 5 del aurora i');
+    service.resolveQuery('mostrame más');
+    const response = service.resolveQuery('y el resto?');
+
+    expect(response).toContain('No hay más OTs para este criterio.');
+  });
+
   it('soporta follow-up de cambio de ano', () => {
     service.resolveQuery('que OTs hubo en marzo');
     const response = service.resolveQuery('pero del 2025');

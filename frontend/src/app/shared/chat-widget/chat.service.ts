@@ -49,6 +49,7 @@ import {
   providedIn: 'root',
 })
 export class ChatService {
+  private static readonly CONTINUATION_PAGE_SIZE = 5;
   private turnCounter = 0;
   private readonly dataSource: OtDataSource;
   private ots: OtItem[] = [];
@@ -334,6 +335,11 @@ export class ChatService {
       return this.formatSingleOt(latest);
     }
 
+    if (this.session.mode === 'dynamic' && this.isListContinuationFollowUp(normalizedQuery)) {
+      const continuedDynamicList = this.resolveDynamicListContinuation();
+      if (continuedDynamicList) return continuedDynamicList;
+    }
+
     if (this.session.mode === 'dynamic' && !this.isStandaloneDynamicQuery(normalizedQuery)) {
       const dynamicFollowUp = this.resolveDynamicFollowUp(query, normalizedQuery);
       if (dynamicFollowUp) return dynamicFollowUp;
@@ -414,6 +420,108 @@ export class ChatService {
       this.isWorkRequest(normalizedQuery) ||
       this.isDetailRequest(normalizedQuery)
     );
+  }
+
+  private isListContinuationFollowUp(normalizedQuery: string): boolean {
+    const compact = normalizedQuery.trim().replace(/\s+/g, ' ');
+    return (
+      /^(?:y\s+)?el\s+resto\??$/.test(compact) ||
+      /^(?:mostrame|mostrarme)\s+mas\??$/.test(compact) ||
+      /^segui\??$/.test(compact) ||
+      /^las\s+demas\??$/.test(compact) ||
+      /^las\s+otras\??$/.test(compact) ||
+      /^(?:y\s+)?despues\??$/.test(compact)
+    );
+  }
+
+  private resolveDynamicListContinuation(): string | null {
+    if (this.session.mode !== 'dynamic') return null;
+    if (!this.session.activeList.length) return null;
+    if (!this.session.latest && this.session.limit === null) return null;
+
+    const fullResults = this.rebuildDynamicBaseResultsFromSession();
+    if (!fullResults.length) {
+      this.session = this.createEmptySession();
+      return 'No tengo resultados disponibles para continuar esa lista.';
+    }
+
+    const currentCount = this.session.activeList.length;
+    if (currentCount >= fullResults.length) {
+      return 'No hay más OTs para este criterio.';
+    }
+
+    const nextCount = Math.min(
+      currentCount + ChatService.CONTINUATION_PAGE_SIZE,
+      fullResults.length
+    );
+    const nextChunk = fullResults.slice(currentCount, nextCount);
+    if (!nextChunk.length) {
+      return 'No hay más OTs para este criterio.';
+    }
+
+    const continuationEntityType =
+      this.session.entityType === 'empresa' ||
+      this.session.entityType === 'activo' ||
+      this.session.entityType === 'periodo'
+        ? this.session.entityType
+        : null;
+
+    this.rememberList({
+      mode: 'dynamic',
+      items: fullResults.slice(0, nextCount),
+      entityType: continuationEntityType,
+      entityValue: this.session.entityValue,
+      sortOrder: this.session.sortOrder,
+      year: this.session.year,
+      month: this.session.month,
+      exactDateIso: this.session.exactDateIso,
+      latest: this.session.latest,
+      limit: nextCount,
+    });
+
+    return this.formatOtList(
+      `Mostrando ${nextChunk.length} ${this.otCountLabel(nextChunk.length)} más (${nextCount} de ${fullResults.length}):`,
+      nextChunk
+    );
+  }
+
+  private rebuildDynamicBaseResultsFromSession(): OtItem[] {
+    let results = this.ots;
+
+    if (
+      this.session.entityType === 'empresa' &&
+      this.session.entityValue
+    ) {
+      results = results.filter(
+        (item) =>
+          this.normalizeText(item.empresa) === this.normalizeText(this.session.entityValue as string)
+      );
+    } else if (
+      this.session.entityType === 'activo' &&
+      this.session.entityValue
+    ) {
+      results = results.filter(
+        (item) =>
+          this.normalizeText(item.activo) === this.normalizeText(this.session.entityValue as string)
+      );
+    }
+
+    if (this.session.exactDateIso) {
+      results = filterByExactDate(results, this.session.exactDateIso);
+      return sortByFechaDesc(results);
+    }
+
+    if (this.session.month !== null && this.session.year !== null) {
+      results = filterByMonthYear(results, this.session.month, this.session.year);
+      return sortByFechaDesc(results);
+    }
+
+    if (this.session.year !== null) {
+      results = filterByYear(results, this.session.year);
+      return sortByFechaDesc(results);
+    }
+
+    return sortByFechaDesc(results);
   }
 
   private hasExplicitNewScope(
