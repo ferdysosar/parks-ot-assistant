@@ -40,18 +40,52 @@ describe('ChatService dynamic queries', () => {
     expect(response).toContain('de las 8 solicitadas para Aurora I');
   });
 
-  it('aplica interseccion empresa + activo en consulta dinamica combinada', () => {
+  it('desambigua cuando detecta empresa y activo fuertes en la misma consulta', () => {
     const response = service.resolveQuery('ultimas 5 de rio norte aurora');
 
-    expect(response).toContain('OT-013');
-    expect(response).toContain('OT-011');
-    expect(response).toContain('OT-012');
-    expect(response).toContain('OT-001');
-    expect(response).toContain('OT-020');
+    expect(response).toContain('Detecté una ambigüedad entre empresa y activo');
+    expect(response).toContain('empresa ("Río Norte Logística")');
+    expect(response).toContain('activo ("Aurora I")');
+  });
 
-    expect(response).not.toContain('Centinela');
-    expect(response).not.toContain('OT-016');
-    expect(response).not.toContain('OT-015');
+  it('desambigua tambien cuando la ambiguedad depende del phrasing', () => {
+    const response = service.resolveQuery('quiero ver 3 de aurora rio');
+    expect(response).toContain('Detecté una ambigüedad entre empresa y activo');
+    expect(response).toContain('empresa ("Río Norte Logística")');
+    expect(response).toContain('activo ("Aurora I")');
+  });
+
+  it('prioriza conteo por periodo como consulta nueva sobre detalle contextual previo', () => {
+    service.resolveQuery('logistica');
+    service.resolveQuery('detalle');
+    const response = service.resolveQuery('en total en 2026 cuantas hay?');
+    expect(response).toContain('En 2026 hubo');
+    expect(response).not.toContain('Detalle de trabajos para la empresa');
+  });
+
+  it('resuelve en total como conteo contextual y no como detalle de lista', () => {
+    service.resolveQuery('logistica');
+    service.resolveQuery('detalle');
+    service.resolveQuery('en total en 2026 cuantas hay?');
+    service.resolveQuery('y en 2025?');
+    const response = service.resolveQuery('en total?');
+    expect(response).toContain('En 2025 hubo');
+    expect(response).not.toContain('Detalle de trabajos de la lista actual');
+  });
+
+  it('resuelve total y cual es el total como conteo contextual', () => {
+    service.resolveQuery('logistica');
+    service.resolveQuery('detalle');
+    service.resolveQuery('en total en 2026 cuantas hay?');
+    service.resolveQuery('y en 2025?');
+
+    const totalResponse = service.resolveQuery('total?');
+    expect(totalResponse).toContain('En 2025 hubo');
+    expect(totalResponse).not.toContain('Detalle de trabajos de la lista actual');
+
+    const cualTotalResponse = service.resolveQuery('cual es el total?');
+    expect(cualTotalResponse).toContain('En 2025 hubo');
+    expect(cualTotalResponse).not.toContain('Detalle de trabajos de la lista actual');
   });
 
   it('soporta follow-up de cambio de ano', () => {

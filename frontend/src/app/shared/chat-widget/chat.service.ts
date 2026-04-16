@@ -424,6 +424,7 @@ export class ChatService {
     if (parsed.intent === 'ot' && parsed.value) return true;
     if (this.isHistoryRequest(normalizedQuery)) return true;
     if (this.isStandaloneDynamicQuery(normalizedQuery)) return true;
+    if (parseDynamicQueryMeta(query, this.ots).hasDynamicRequest) return true;
 
     const bestCompany = this.getBestMatches(query, 'empresa')[0];
     const bestAsset = this.getBestMatches(query, 'activo')[0];
@@ -1128,7 +1129,9 @@ export class ChatService {
     }
 
     const explicitCount =
-      /\bcuantas?\b|\bcuantos?\b/.test(normalizedQuery) ? true : null;
+      /\bcuantas?\b|\bcuantos?\b|\b(?:en\s+)?total\b|\bcual\s+es\s+el\s+total\b/.test(normalizedQuery)
+        ? true
+        : null;
     const hasPatch = Boolean(
       meta.exactDateIso !== null ||
       explicitYear !== null ||
@@ -1232,10 +1235,45 @@ export class ChatService {
     const rankedAssets = this.getBestMatches(query, 'activo');
     const bestCompany = rankedCompanies.length > 0 ? rankedCompanies[0] : null;
     const bestAsset = rankedAssets.length > 0 ? rankedAssets[0] : null;
+    const companyHint = this.findTokenHintEntity(query, 'empresa');
+    const assetHint = this.findTokenHintEntity(query, 'activo');
+    const hintedCompany = bestCompany?.value ?? companyHint?.value ?? null;
+    const hintedAsset = bestAsset?.value ?? assetHint?.value ?? null;
     const companyStrong = !!bestCompany && bestCompany.score >= 65;
     const assetStrong = !!bestAsset && bestAsset.score >= 65;
     const companyScopeEntity = companyStrong ? bestCompany.value : null;
     const assetScopeEntity = assetStrong ? bestAsset.value : null;
+
+    // Si hay señales claras de empresa y activo al mismo tiempo, pedimos desambiguar
+    // para evitar decisiones silenciosas por phrasing.
+    const companyDominatesWithClearName =
+      !!companyHint &&
+      !!assetHint &&
+      companyHint.matchedTokenCount >= 2 &&
+      assetHint.matchedTokenCount === 1 &&
+      assetHint.maxMatchedTokenLength <= 3;
+
+    const assetDominatesWithClearName =
+      !!companyHint &&
+      !!assetHint &&
+      assetHint.matchedTokenCount >= 2 &&
+      companyHint.matchedTokenCount === 1 &&
+      companyHint.maxMatchedTokenLength <= 3;
+
+    if (
+      parsed.intent === 'unknown' &&
+      hintedCompany &&
+      hintedAsset &&
+      this.normalizeText(hintedCompany) !== this.normalizeText(hintedAsset) &&
+      !companyDominatesWithClearName &&
+      !assetDominatesWithClearName
+    ) {
+      this.session = this.createEmptySession();
+      return [
+        'Detecté una ambigüedad entre empresa y activo en tu consulta.',
+        `¿Querés buscar por empresa ("${hintedCompany}") o por activo ("${hintedAsset}")?`,
+      ].join('\n');
+    }
 
     if (parsed.intent === 'empresa') {
       if (companyStrong) {
@@ -1428,6 +1466,48 @@ export class ChatService {
     field: 'empresa' | 'activo'
   ): Array<{ value: string; score: number }> {
     return matcherGetBestMatches(query, field, this.ots);
+  }
+
+  private findTokenHintEntity(
+    query: string,
+    field: 'empresa' | 'activo'
+  ): { value: string; score: number; matchedTokenCount: number; maxMatchedTokenLength: number } | null {
+    const cleanedQuery = this.extractRelevantQuery(this.normalizeText(query), field);
+    const tokens = this.extractMeaningfulTokens(cleanedQuery);
+    if (!tokens.length) return null;
+
+    const values = [...new Set(this.ots.map((item) => item[field]))];
+    let best: {
+      value: string;
+      score: number;
+      matchedTokenCount: number;
+      maxMatchedTokenLength: number;
+    } | null = null;
+
+    for (const value of values) {
+      const normalizedValue = this.normalizeText(value);
+      let score = 0;
+      let matched = 0;
+      let maxMatchedTokenLength = 0;
+
+      for (const token of tokens) {
+        const tokenScore = this.scoreTokenAgainstTarget(token, normalizedValue);
+        if (tokenScore >= 60) {
+          score += tokenScore;
+          matched++;
+          if (token.length > maxMatchedTokenLength) {
+            maxMatchedTokenLength = token.length;
+          }
+        }
+      }
+
+      if (!matched) continue;
+      if (!best || score > best.score) {
+        best = { value, score, matchedTokenCount: matched, maxMatchedTokenLength };
+      }
+    }
+
+    return best;
   }
 
   private findBestGlobalMatch(query: string): GlobalResolution {
